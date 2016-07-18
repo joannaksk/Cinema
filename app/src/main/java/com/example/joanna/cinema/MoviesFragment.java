@@ -11,11 +11,13 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
+import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.GridView;
 
 import com.example.joanna.cinema.data.MovieContract;
 import com.example.joanna.cinema.data.MovieProvider;
@@ -32,13 +34,16 @@ import info.movito.themoviedbapi.model.MovieDb;
  */
 public class MoviesFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor>{
 
+    static final String LOG_TAG = MoviesFragment.class.getSimpleName();
     private static final int MOVIE_LOADER = 0;
     private static final String[] MOVIE_COLUMNS = {
             MovieContract.MovieColumns._ID,
+            MovieContract.MovieColumns.COLUMN_TITLE,
             MovieContract.MovieColumns.COLUMN_POSTER,
     };
 
     MovieAdapter movieAdapter;
+    private SwipeRefreshLayout swipeView;
 
 
     public MoviesFragment() {
@@ -48,10 +53,23 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+        swipeView = (SwipeRefreshLayout) rootView.findViewById(R.id.refreshMovies);
+        swipeView.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                updateMovies();
+            }
+        });
 
-        GridView gridView = (GridView) rootView.findViewById(R.id.gridview_movies);
-        movieAdapter = new MovieAdapter(getActivity(), null, 0);
-        gridView.setAdapter( movieAdapter);
+        RecyclerView gridView = (RecyclerView) rootView.findViewById(R.id.gridview_movies);
+        GridLayoutManager layoutManager = new GridLayoutManager(getContext(), 2);
+
+        gridView.setHasFixedSize(true);
+        gridView.setLayoutManager(layoutManager);
+
+
+        movieAdapter = new MovieAdapter(getActivity(), null);
+        gridView.setAdapter(movieAdapter);
 
 //        gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 //            public void onItemClick(AdapterView<?> parent, View v,
@@ -97,20 +115,31 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
-        movieAdapter.swapCursor(data);
+        Log.v(LOG_TAG, "Cursor size : " + data.getCount());
+        movieAdapter.changeCursor(data);
     }
 
     @Override
     public void onLoaderReset(Loader<Cursor> loader) {
-        movieAdapter.swapCursor(null);
+        movieAdapter.changeCursor(null);
     }
 
-    public static class FetchMovieTask extends AsyncTask<Void, Void, Void> {
-        static final String LOG_TAG = FetchMovieTask.class.getSimpleName();
+
+    public  class FetchMovieTask extends AsyncTask<Void, Void, Void> {
+         final String LOG_TAG = FetchMovieTask.class.getSimpleName();
         private final Context mContext;
 
         public FetchMovieTask(Context mContext) {
             this.mContext = mContext;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+
+            movieAdapter.notifyDataSetChanged();
+            swipeView.setRefreshing(false);
+
         }
 
         @Override
@@ -127,8 +156,9 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
                 for (MovieDb movie : movies_list) {
                     ContentValues movieValues = new ContentValues();
+                    Log.d(LOG_TAG, "FetchMovieTask Adding ID. " + movie.getReleaseDate() + "To Be Inserted");
 
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_MOVIE_ID, movie.getImdbID());
+                    movieValues.put(MovieContract.MovieColumns._ID, movie.getImdbID());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_TITLE, movie.getTitle());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_RELEASE_DATE, movie.getReleaseDate());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_DURATION, movie.getRuntime());
@@ -142,20 +172,20 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
                 // add to database
                 if ( cVVector.size() > 0 ) {
-                    // Student: call bulkInsert to add the weatherEntries to the database here
                     int rowsInserted = mContext.getContentResolver().bulkInsert(
                             MovieProvider.Movies.LIST_CONTENT_URI,
                             cVVector.toArray(new ContentValues[cVVector.size()])
                     );
+                    Log.d(LOG_TAG, "FetchMovieTask Complete. " + rowsInserted + " Inserted");
                 }
-                Log.d(LOG_TAG, "FetchMovieTask Complete. " + cVVector.size() + " Inserted");
+                Log.d(LOG_TAG, "FetchMovieTask Complete. " + cVVector.size() + " Vector Size");
                 return null;
             }
             catch (Exception e) {
                 Log.e(LOG_TAG, e.getMessage(), e);
                 e.printStackTrace();
             }
-            // This will only happen if there was an error getting or parsing the forecast.
+            // This will only happen if there was an error getting or parsing the movies.
             return null;
         }
     }
