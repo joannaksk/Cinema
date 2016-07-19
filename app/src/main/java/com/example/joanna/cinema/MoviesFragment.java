@@ -2,10 +2,12 @@ package com.example.joanna.cinema;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
@@ -35,14 +37,16 @@ import info.movito.themoviedbapi.model.MovieDb;
 public class MoviesFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor>{
 
     static final String LOG_TAG = MoviesFragment.class.getSimpleName();
+
     private static final int MOVIE_LOADER = 0;
     private static final String[] MOVIE_COLUMNS = {
             MovieContract.MovieColumns._ID,
             MovieContract.MovieColumns.COLUMN_TITLE,
             MovieContract.MovieColumns.COLUMN_POSTER,
+            MovieContract.MovieColumns.COLUMN_POPULARITY,
+            MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE,
     };
-
-    MovieAdapter movieAdapter;
+    private MovieAdapter movieAdapter;
     private SwipeRefreshLayout swipeView;
 
 
@@ -50,9 +54,15 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     }
 
     @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+    }
+
+    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+
         swipeView = (SwipeRefreshLayout) rootView.findViewById(R.id.refreshMovies);
         swipeView.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
@@ -61,17 +71,16 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
             }
         });
 
-        RecyclerView gridView = (RecyclerView) rootView.findViewById(R.id.gridview_movies);
+        RecyclerView recyclerView = (RecyclerView) rootView.findViewById(R.id.gridview_movies);
+        recyclerView.setHasFixedSize(true);
+
         GridLayoutManager layoutManager = new GridLayoutManager(getContext(), 2);
-
-        gridView.setHasFixedSize(true);
-        gridView.setLayoutManager(layoutManager);
-
+        recyclerView.setLayoutManager(layoutManager);
 
         movieAdapter = new MovieAdapter(getActivity(), null);
-        gridView.setAdapter(movieAdapter);
+        recyclerView.setAdapter(movieAdapter);
 
-//        gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+//        recyclerView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 //            public void onItemClick(AdapterView<?> parent, View v,
 //                                    int position, long id) {
 //                Intent intent = new Intent(getActivity(), DetailActivity.class);
@@ -86,11 +95,11 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
         movieTask.execute();
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        updateMovies();
-    }
+//    @Override
+//    public void onStart() {
+//        super.onStart();
+//        updateMovies();
+//    }
 
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
@@ -100,9 +109,13 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        String defaultSort = getActivity().getString(R.string.pref_sort_order_default);
+        String sort = sharedPreferences.getString(getActivity().getString(R.string.pref_sort_order_key),
+                defaultSort);
         Uri movieUri = MovieProvider.Movies.LIST_CONTENT_URI;
-        String defaultSort = MovieContract.MovieColumns.COLUMN_POPULARITY + " DESC";
+
+//        String defaultSort = MovieContract.MovieColumns.COLUMN_POPULARITY + " DESC";
 
         return new CursorLoader(
                 getActivity(),
@@ -110,7 +123,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                 MOVIE_COLUMNS,
                 null,
                 null,
-                defaultSort);
+                sort);
     }
 
     @Override
@@ -126,7 +139,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
 
     public  class FetchMovieTask extends AsyncTask<Void, Void, Void> {
-         final String LOG_TAG = FetchMovieTask.class.getSimpleName();
+        final String LOG_TAG = FetchMovieTask.class.getSimpleName();
         private final Context mContext;
 
         public FetchMovieTask(Context mContext) {
@@ -134,9 +147,13 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
         }
 
         @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
         protected void onPostExecute(Void aVoid) {
             super.onPostExecute(aVoid);
-
             movieAdapter.notifyDataSetChanged();
             swipeView.setRefreshing(false);
 
@@ -156,9 +173,8 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
                 for (MovieDb movie : movies_list) {
                     ContentValues movieValues = new ContentValues();
-                    Log.d(LOG_TAG, "FetchMovieTask Adding ID. " + movie.getReleaseDate() + "To Be Inserted");
 
-                    movieValues.put(MovieContract.MovieColumns._ID, movie.getImdbID());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_MOVIE_ID, movie.getId());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_TITLE, movie.getTitle());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_RELEASE_DATE, movie.getReleaseDate());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_DURATION, movie.getRuntime());
@@ -168,6 +184,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                     movieValues.put(MovieContract.MovieColumns.COLUMN_OVERVIEW, movie.getOverview());
 
                     cVVector.add(movieValues);
+                    Log.d(LOG_TAG, "FetchMovieTask Adding ID: " + movie.getId() + " : " + movie.getTitle() + " To Be Inserted");
                 }
 
                 // add to database
@@ -178,7 +195,6 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                     );
                     Log.d(LOG_TAG, "FetchMovieTask Complete. " + rowsInserted + " Inserted");
                 }
-                Log.d(LOG_TAG, "FetchMovieTask Complete. " + cVVector.size() + " Vector Size");
                 return null;
             }
             catch (Exception e) {

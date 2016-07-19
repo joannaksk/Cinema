@@ -17,34 +17,35 @@ import com.squareup.picasso.Picasso;
  */
 public class MovieAdapter extends CursorRecyclerViewAdapter<MovieAdapter.ViewHolder> {
     private Context mContext;
-    private ViewHolder viewHolder;
-    private Cursor mCursor;
 
     public MovieAdapter(Context context, Cursor cursor){
         super(context, cursor);
         mContext = context;
-        mCursor = cursor;
     }
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(mContext).inflate(R.layout.grid_item_movie, parent, false);
-        viewHolder = new ViewHolder(view);
-        return viewHolder;
+        return new ViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, Cursor cursor) {
         // Read poster path from cursor
-//        viewHolder.titleView.setText(cursor.getString(cursor.getColumnIndex(MovieContract.MovieColumns.COLUMN_TITLE)));
+//        holder.titleView.setText(cursor.getString(cursor.getColumnIndex(MovieContract.MovieColumns.COLUMN_TITLE)));
         String base_path = "http://image.tmdb.org/t/p/w500";
         String poster_path = cursor.getString(cursor.getColumnIndex(MovieContract.MovieColumns.COLUMN_POSTER));
         Uri poster_uri = Uri.parse(base_path+poster_path);
 
+        Picasso.with(mContext).cancelRequest(holder.posterView);
+        if (poster_uri != null) {
         Picasso
                 .with(mContext)
                 .load(poster_uri)
-                .into(viewHolder.posterView);
+                .into(holder.posterView);
+        } else {
+            holder.posterView.setImageResource(R.drawable.ic_game_of_thrones);
+        }
 
     }
 
@@ -57,25 +58,4 @@ public class MovieAdapter extends CursorRecyclerViewAdapter<MovieAdapter.ViewHol
 //            titleView = (TextView) view.findViewById(R.id.grid_item_movie_title);
         }
     }
-
-//    @Override
-//    public View newView(Context context, Cursor cursor, ViewGroup parent) {
-//        View view = LayoutInflater.from(context).inflate(R.layout.grid_item_movie, parent, false);
-//        viewHolder = new ViewHolder(view);
-//        return view;
-//    }
-//
-//    @Override
-//    public void bindView(View view, Context context, Cursor cursor) {
-//        // Read poster path from cursor
-//        String base_path = "http://image.tmdb.org/t/p/w500";
-//        String poster_path = cursor.getString(cursor.getColumnIndex(MovieContract.MovieColumns.COLUMN_POSTER));
-//        Uri poster_uri = Uri.parse(base_path+poster_path);
-//
-//        Picasso
-//                .with(mContext)
-//                .load(poster_uri)
-//                .into(viewHolder.posterView);
-//
-//    }
 }

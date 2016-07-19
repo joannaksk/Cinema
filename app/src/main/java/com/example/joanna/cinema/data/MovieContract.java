@@ -22,10 +22,10 @@ public class MovieContract{
         @DataType(INTEGER)
         public static final String _COUNT = "_count";
 
-        @DataType(TEXT)
+        @DataType(TEXT) @Unique (onConflict = ConflictResolutionType.REPLACE)
         public static final String COLUMN_MOVIE_ID = "movie_id";
 
-        @DataType(TEXT) @Unique (onConflict = ConflictResolutionType.IGNORE)
+        @DataType(TEXT) @Unique (onConflict = ConflictResolutionType.REPLACE)
         public static final String COLUMN_TITLE = "title";
 
         @DataType(TEXT)
@@ -34,7 +34,7 @@ public class MovieContract{
         @DataType(TEXT)
         public static final String COLUMN_DURATION = "duration";
 
-        @DataType(TEXT) @Unique (onConflict = ConflictResolutionType.IGNORE)
+        @DataType(TEXT)
         public static final String COLUMN_POSTER = "movie_poster";
 
         @DataType(INTEGER)
