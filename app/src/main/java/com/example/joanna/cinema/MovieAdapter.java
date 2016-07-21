@@ -9,7 +9,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
-import com.example.joanna.cinema.data.MovieContract;
 import com.squareup.picasso.Picasso;
 
 /**
@@ -17,10 +16,14 @@ import com.squareup.picasso.Picasso;
  */
 public class MovieAdapter extends CursorRecyclerViewAdapter<MovieAdapter.ViewHolder> {
     private Context mContext;
+    private Cursor mCursor;
+    private final OnItemClickListener listener;
 
-    public MovieAdapter(Context context, Cursor cursor){
+    public MovieAdapter(Context context, Cursor cursor, OnItemClickListener listener){
         super(context, cursor);
-        mContext = context;
+        this.mContext = context;
+        this.mCursor = cursor;
+        this.listener = listener;
     }
 
     @Override
@@ -30,11 +33,12 @@ public class MovieAdapter extends CursorRecyclerViewAdapter<MovieAdapter.ViewHol
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, Cursor cursor) {
-        // Read poster path from cursor
-//        holder.titleView.setText(cursor.getString(cursor.getColumnIndex(MovieContract.MovieColumns.COLUMN_TITLE)));
-        String base_path = "http://image.tmdb.org/t/p/w500";
-        String poster_path = cursor.getString(cursor.getColumnIndex(MovieContract.MovieColumns.COLUMN_POSTER));
+    public void onBindViewHolder(ViewHolder holder, final Cursor cursor) {
+//        holder.titleView.setText(cursor.getString(MoviesFragment.COL_MOVIE_TITLE));
+//        holder.titleView.setText(movie_id);
+
+        String base_path = BuildConfig.MOVIE_POSTER_BASE_PATH;
+        String poster_path = cursor.getString(MoviesFragment.COL_MOVIE_POSTER);
         Uri poster_uri = Uri.parse(base_path+poster_path);
 
         Picasso.with(mContext).cancelRequest(holder.posterView);
@@ -44,8 +48,19 @@ public class MovieAdapter extends CursorRecyclerViewAdapter<MovieAdapter.ViewHol
                 .load(poster_uri)
                 .into(holder.posterView);
         } else {
+            //Todo Add placeholder image
             holder.posterView.setImageResource(R.drawable.ic_game_of_thrones);
         }
+
+
+        final Long movie_id = cursor.getLong(MoviesFragment.COL_MOVIE_ID);
+
+        holder.posterView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                listener.onItemClick(movie_id);
+            }
+        });
 
     }
 
@@ -57,5 +72,9 @@ public class MovieAdapter extends CursorRecyclerViewAdapter<MovieAdapter.ViewHol
             posterView = (ImageView) view.findViewById(R.id.grid_item_movie_poster);
 //            titleView = (TextView) view.findViewById(R.id.grid_item_movie_title);
         }
+    }
+
+    public interface OnItemClickListener {
+        void onItemClick(Long movie_id);
     }
 }

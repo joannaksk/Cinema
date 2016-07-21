@@ -12,4 +12,5 @@
         android:id="@+id/gridview_movies"
         android:scrollbars="vertical"
         />
+
 </android.support.v4.widget.SwipeRefreshLayout>

@@ -9,11 +9,6 @@
         android:id="@+id/grid_item_movie_poster"
         android:layout_gravity="center_vertical"
         android:scaleType="centerCrop"/>
-    <!--<ProgressBar-->
-        <!--android:layout_gravity="center"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:id=""/>-->
     <!--<TextView-->
         <!--android:layout_width="match_parent"-->
         <!--android:layout_height="wrap_content"-->

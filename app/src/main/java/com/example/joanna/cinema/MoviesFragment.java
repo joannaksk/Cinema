@@ -41,11 +41,19 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     private static final int MOVIE_LOADER = 0;
     private static final String[] MOVIE_COLUMNS = {
             MovieContract.MovieColumns._ID,
-            MovieContract.MovieColumns.COLUMN_TITLE,
+            MovieContract.MovieColumns.COLUMN_MOVIE_ID,
             MovieContract.MovieColumns.COLUMN_POSTER,
-            MovieContract.MovieColumns.COLUMN_POPULARITY,
-            MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE,
+            MovieContract.MovieColumns.COLUMN_TITLE,
+//            MovieContract.MovieColumns.COLUMN_POPULARITY,
+//            MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE,
     };
+    static final int COL_MOVIE_DBID = 0;
+    static final int COL_MOVIE_ID = 1;
+    static final int COL_MOVIE_POSTER = 2;
+//    static final int COL_MOVIE_TITLE = 3;
+//    static final int COL_MOVIE_POPULARITY = 4;
+//    static final int COL_MOVIE_VOTE_AVERAGE = 5;
+
     private MovieAdapter movieAdapter;
     private SwipeRefreshLayout swipeView;
 
@@ -77,16 +85,18 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
         GridLayoutManager layoutManager = new GridLayoutManager(getContext(), 2);
         recyclerView.setLayoutManager(layoutManager);
 
-        movieAdapter = new MovieAdapter(getActivity(), null);
+
+        movieAdapter = new MovieAdapter(getActivity(), null, new MovieAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(Long movie_id) {
+                if (movie_id != null) {
+                    ((Callback) getActivity())
+                            .onItemSelected(MovieProvider.Movies.withId(movie_id));                }
+            }
+        });
         recyclerView.setAdapter(movieAdapter);
 
-//        recyclerView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-//            public void onItemClick(AdapterView<?> parent, View v,
-//                                    int position, long id) {
-//                Intent intent = new Intent(getActivity(), DetailActivity.class);
-//                startActivity(intent);
-//            }
-//        });
+
         return rootView;
     }
 
@@ -115,8 +125,6 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                 defaultSort);
         Uri movieUri = MovieProvider.Movies.LIST_CONTENT_URI;
 
-//        String defaultSort = MovieContract.MovieColumns.COLUMN_POPULARITY + " DESC";
-
         return new CursorLoader(
                 getActivity(),
                 movieUri,
@@ -135,6 +143,18 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     @Override
     public void onLoaderReset(Loader<Cursor> loader) {
         movieAdapter.changeCursor(null);
+    }
+
+    /**
+     * A callback interface that all activities containing this fragment must
+     * implement. This mechanism allows activities to be notified of item
+     * selections.
+     */
+    public interface Callback {
+        /**
+         * DetailFragmentCallback for when an item has been selected.
+         */
+        public void onItemSelected(Uri movieUri);
     }
 
 

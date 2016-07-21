@@ -1,13 +1,14 @@
 package com.example.joanna.cinema;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements MoviesFragment.Callback {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,5 +49,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onItemSelected(Uri movieUri) {
+        Intent intent = new Intent(this, DetailActivity.class)
+                .setData(movieUri);
+        startActivity(intent);
     }
 }
