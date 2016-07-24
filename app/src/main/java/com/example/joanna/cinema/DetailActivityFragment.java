@@ -8,7 +8,6 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -49,16 +48,13 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     static final int COL_MOVIE_VOTE_AVERAGE = 6;
     static final int COL_MOVIE_OVERVIEW = 7;
 
-    private Toolbar toolbar;
+    private TextView movieTitleTextView;
     private ImageView posterView;
     private TextView yearTextView;
     private TextView durationTextView;
     private TextView voteAverageTextView;
+    private TextView popularityTextView;
     private TextView overviewTextView;
-    private TextView mLowTempView;
-    private TextView mHumidityView;
-    private TextView mWindView;
-    private TextView mPressureView;
 
     public DetailActivityFragment() {
     }
@@ -78,11 +74,12 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
             dUri = arguments.getParcelable(DetailActivityFragment.DETAIL_URI);
         }
 
-        toolbar = (Toolbar) rootView.findViewById(R.id.toolbar);
+        movieTitleTextView = (TextView) rootView.findViewById(R.id.textview_movie_title);
         posterView = (ImageView) rootView.findViewById(R.id.posterView);
         yearTextView = (TextView) rootView.findViewById(R.id.textView_year);
         durationTextView = (TextView) rootView.findViewById(R.id.textView_duration);
         voteAverageTextView = (TextView) rootView.findViewById(R.id.textView_vote_average);
+        popularityTextView = (TextView) rootView.findViewById(R.id.textView_popularity);
         overviewTextView = (TextView) rootView.findViewById(R.id.textView_overview);
 
         return rootView;
@@ -110,7 +107,7 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
         // Title
         String title = data.getString(COL_MOVIE_TITLE);
-//        toolbar.setTitle(title);
+        movieTitleTextView.setText(title);
         // Set the Content Description for icons so Talkback can read it out.
         posterView.setContentDescription(title);
 
@@ -135,11 +132,15 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
         // Duration
         String duration = data.getString(COL_MOVIE_DURATION);
-        durationTextView.setText(duration);
+        durationTextView.setText(duration+"min");
 
         // Vote Average
         String vote_average = data.getString(COL_MOVIE_VOTE_AVERAGE);
-        voteAverageTextView.setText(vote_average);
+        voteAverageTextView.setText(vote_average+"/10");
+
+        // Popularity
+        String popularity = data.getString(COL_MOVIE_POPULARITY);
+        popularityTextView.setText(popularity);
 
         // Overview
         String overview = data.getString(COL_MOVIE_OVERVIEW);

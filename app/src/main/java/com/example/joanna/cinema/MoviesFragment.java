@@ -16,6 +16,7 @@ import android.support.v4.content.Loader;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SimpleItemAnimator;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -44,15 +45,10 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
             MovieContract.MovieColumns.COLUMN_MOVIE_ID,
             MovieContract.MovieColumns.COLUMN_POSTER,
             MovieContract.MovieColumns.COLUMN_TITLE,
-//            MovieContract.MovieColumns.COLUMN_POPULARITY,
-//            MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE,
     };
     static final int COL_MOVIE_DBID = 0;
     static final int COL_MOVIE_ID = 1;
     static final int COL_MOVIE_POSTER = 2;
-//    static final int COL_MOVIE_TITLE = 3;
-//    static final int COL_MOVIE_POPULARITY = 4;
-//    static final int COL_MOVIE_VOTE_AVERAGE = 5;
 
     private MovieAdapter movieAdapter;
     private SwipeRefreshLayout swipeView;
@@ -71,6 +67,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
+        // Get the SwipeRefreshLayout in the rootView and set it to update the movies upon pull.
         swipeView = (SwipeRefreshLayout) rootView.findViewById(R.id.refreshMovies);
         swipeView.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
@@ -79,13 +76,19 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
             }
         });
 
+        // Set up the recycler view.
         RecyclerView recyclerView = (RecyclerView) rootView.findViewById(R.id.gridview_movies);
         recyclerView.setHasFixedSize(true);
+        RecyclerView.ItemAnimator animator = recyclerView.getItemAnimator();
+        if (animator instanceof SimpleItemAnimator) {
+            ((SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
+        }
 
+        // Set the layout of the recycler view to grid.
         GridLayoutManager layoutManager = new GridLayoutManager(getContext(), 2);
         recyclerView.setLayoutManager(layoutManager);
 
-
+        // Create a new movie adapter and add it to the recycler view.
         movieAdapter = new MovieAdapter(getActivity(), null, new MovieAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(Long movie_id) {
@@ -96,20 +99,24 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
         });
         recyclerView.setAdapter(movieAdapter);
 
-
         return rootView;
     }
 
+    /**
+     * Function that creates and executes a FetchMovieTask.
+     */
     private void updateMovies() {
         FetchMovieTask movieTask = new FetchMovieTask(getActivity());
         movieTask.execute();
     }
 
-//    @Override
-//    public void onStart() {
-//        super.onStart();
-//        updateMovies();
-//    }
+    /**
+     * Callback function that runs a new FetchMovieTask and restarts the Movie Loader.
+     */
+    void onSortChanged( ) {
+        updateMovies();
+        getLoaderManager().restartLoader(MOVIE_LOADER, null, this);
+    }
 
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
@@ -119,10 +126,6 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
-        String defaultSort = getActivity().getString(R.string.pref_sort_order_default);
-        String sort = sharedPreferences.getString(getActivity().getString(R.string.pref_sort_order_key),
-                defaultSort);
         Uri movieUri = MovieProvider.Movies.LIST_CONTENT_URI;
 
         return new CursorLoader(
@@ -131,7 +134,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                 MOVIE_COLUMNS,
                 null,
                 null,
-                sort);
+                null);
     }
 
     @Override
@@ -186,18 +189,34 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                 // Try to fetch the movies.
                 TmdbApi tmdbApi = new TmdbApi(BuildConfig.MOVIE_DB_API_KEY);
                 TmdbMovies movies = tmdbApi.getMovies();
-                List<MovieDb> movies_list = movies.getPopularMovies("en", 0).getResults();
+                List<MovieDb> movies_list;
+
+                // Decide whether to fetch the most popular or the top rated movies.
+                SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+                String defaultSort = getActivity().getString(R.string.pref_sort_order_default);
+                String sort = sharedPreferences.getString(getActivity().getString(R.string.pref_sort_order_key),
+                        defaultSort);
+
+                // Changed this because I was comparing references instead of the actual text.
+                if (sort.equals(defaultSort)) {
+                    movies_list  = movies.getPopularMovies("en", 0).getResults();
+                    Log.d(LOG_TAG, "FetchMovieTask Complete. Popular Inserted");
+                } else {
+                    movies_list = movies.getTopRatedMovies("en", 0).getResults();
+                    Log.d(LOG_TAG, "FetchMovieTask Complete. Top Rated Inserted");
+                }
 
                 // Insert the new movie information into the database
                 Vector<ContentValues> cVVector = new Vector<ContentValues>(movies_list.size());
 
                 for (MovieDb movie : movies_list) {
+                    MovieDb movie_details = movies.getMovie(movie.getId(), "en", null);
                     ContentValues movieValues = new ContentValues();
 
                     movieValues.put(MovieContract.MovieColumns.COLUMN_MOVIE_ID, movie.getId());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_TITLE, movie.getTitle());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_RELEASE_DATE, movie.getReleaseDate());
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_DURATION, movie.getRuntime());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_DURATION, movie_details.getRuntime());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_POSTER, movie.getPosterPath());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_POPULARITY, movie.getPopularity());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE, movie.getVoteAverage());
@@ -207,8 +226,12 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                     Log.d(LOG_TAG, "FetchMovieTask Adding ID: " + movie.getId() + " : " + movie.getTitle() + " To Be Inserted");
                 }
 
-                // add to database
+                // Add new data to database
                 if ( cVVector.size() > 0 ) {
+                    // Clear the database because I only want to have 20 items in there at any time.
+                    int rowsDeleted = mContext.getContentResolver().delete(MovieProvider.Movies.LIST_CONTENT_URI, null, null);
+                    Log.d(LOG_TAG, "FetchMovieTask Deleting Old Data: " + rowsDeleted + " Deleted");
+                    // Proceed to insert new data.
                     int rowsInserted = mContext.getContentResolver().bulkInsert(
                             MovieProvider.Movies.LIST_CONTENT_URI,
                             cVVector.toArray(new ContentValues[cVVector.size()])

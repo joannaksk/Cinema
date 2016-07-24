@@ -12,6 +12,7 @@ public class DetailActivity extends AppCompatActivity {
         setContentView(R.layout.activity_detail);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
 //        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
 //        fab.setOnClickListener(new View.OnClickListener() {
@@ -21,7 +22,6 @@ public class DetailActivity extends AppCompatActivity {
 //                        .setAction("Action", null).show();
 //            }
 //        });
-//        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
 
         if (savedInstanceState == null) {
