@@ -83,6 +83,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
         if (animator instanceof SimpleItemAnimator) {
             ((SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
         }
+        recyclerView.getItemAnimator().setChangeDuration(0);
 
         // Set the layout of the recycler view to grid.
         GridLayoutManager layoutManager = new GridLayoutManager(getContext(), 2);

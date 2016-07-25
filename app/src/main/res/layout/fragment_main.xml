@@ -11,6 +11,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/gridview_movies"
         android:scrollbars="vertical"
+        android:background="@android:color/background_dark"
         />
 
 </android.support.v4.widget.SwipeRefreshLayout>

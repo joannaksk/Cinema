@@ -53,7 +53,6 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     private TextView yearTextView;
     private TextView durationTextView;
     private TextView voteAverageTextView;
-    private TextView popularityTextView;
     private TextView overviewTextView;
 
     public DetailActivityFragment() {
@@ -79,7 +78,6 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         yearTextView = (TextView) rootView.findViewById(R.id.textView_year);
         durationTextView = (TextView) rootView.findViewById(R.id.textView_duration);
         voteAverageTextView = (TextView) rootView.findViewById(R.id.textView_vote_average);
-        popularityTextView = (TextView) rootView.findViewById(R.id.textView_popularity);
         overviewTextView = (TextView) rootView.findViewById(R.id.textView_overview);
 
         return rootView;
@@ -140,7 +138,6 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
         // Popularity
         String popularity = data.getString(COL_MOVIE_POPULARITY);
-        popularityTextView.setText(popularity);
 
         // Overview
         String overview = data.getString(COL_MOVIE_OVERVIEW);

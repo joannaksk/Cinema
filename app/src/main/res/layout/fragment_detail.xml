@@ -33,7 +33,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:layout_marginTop="8dp"
-            android:layout_marginLeft="16dp"
+            android:layout_marginLeft="8dp"
             android:layout_marginRight="16dp">
             <LinearLayout
                 android:orientation="horizontal"
@@ -41,8 +41,8 @@
                 android:layout_height="wrap_content">
 
                 <ImageView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="180dp"
+                    android:layout_height="240dp"
                     android:id="@+id/posterView"/>
 
                 <LinearLayout
@@ -50,31 +50,40 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:paddingLeft="20dp"
-                    android:paddingTop="40dp">
+                    android:paddingTop="4dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textAppearance="?android:textAppearanceLarge"
-                        android:id="@+id/textView_year" />
+                        android:id="@+id/textView_year"
+                        android:textSize="26sp"
+                        android:textColor="#808080"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:id="@+id/textView_duration"
-                        android:textAppearance="?android:textAppearanceMedium"
-                        android:textStyle="italic"/>
+                        android:textAppearance="?android:textAppearanceLarge"
+                        android:textStyle="italic"
+                        android:textColor="#808080"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:id="@+id/textView_vote_average" />
+                        android:id="@+id/textView_vote_average"
+                        android:paddingTop="16dp"
+                        android:textColor="@android:color/black"/>
 
-                    <!--This textbox was for debugging purposes-->
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <Button
+                        style="?android:attr/buttonStyleSmall"
+                        android:layout_width="98dp"
                         android:layout_height="wrap_content"
-                        android:id="@+id/textView_popularity" />
+                        android:text="@string/mark_as_favorite"
+                        android:textSize="12sp"
+                        android:id="@+id/button"
+                        android:textColor="#808080"
+                        android:background="#80cbc4"
+                        android:layout_marginTop="12dp"/>
                 </LinearLayout>
 
             </LinearLayout>

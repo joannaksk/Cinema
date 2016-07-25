@@ -5,7 +5,7 @@
 
     <ImageView xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="260dp"
         android:id="@+id/grid_item_movie_poster"
         android:layout_gravity="center_vertical"
         android:scaleType="centerCrop"/>
@@ -14,5 +14,3 @@
         <!--android:layout_height="wrap_content"-->
         <!--android:id="@+id/grid_item_movie_title"/>-->
 <!--</FrameLayout>-->
-
-    <!--android:src="@drawable/ic_game_of_thrones"-->
