@@ -1,10 +1,15 @@
 package com.example.joanna.cinema;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 
-public class DetailActivity extends AppCompatActivity {
+public class DetailActivity extends AppCompatActivity implements DetailActivityFragment.OnFragmentInteractionListener{
+
+    private static final String LOG_TAG = DetailActivity.class.getSimpleName();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,4 +45,16 @@ public class DetailActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onItemSelected(String movie_key) {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        Uri movie_uri = Uri.parse(BuildConfig.MOVIE_VIDEOS_BASE_PATH+movie_key);
+        intent.setData(movie_uri);
+
+        if (intent.resolveActivity(this.getPackageManager()) != null) {
+            startActivity(intent);
+        } else {
+            Log.d(LOG_TAG, "Couldn't call " + movie_uri.toString() + ", no receiving apps installed!");
+        }
+    }
 }

@@ -80,6 +80,8 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     private ReviewsAdapter reviewsAdapter;
     private RecyclerView reviewsView;
 
+    private OnFragmentInteractionListener mListener;
+
     public DetailActivityFragment() {
     }
 
@@ -182,6 +184,24 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         String overview = data.getString(COL_MOVIE_OVERVIEW);
         overviewTextView.setText(overview);
 
+        // Initialise the adapter for the trailers with a null List.
+        videoAdapter =  new VideoAdapter(getActivity(),  null, new VideoAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(String movie_key) {
+                if (movie_key != null) {
+                    ((OnFragmentInteractionListener) getActivity())
+                            .onItemSelected(movie_key);
+                }
+            }
+        });
+        videoView.setAdapter(videoAdapter);
+
+        // Initialise the adapter for the reviews the same way.
+        reviewsAdapter =  new ReviewsAdapter(null);
+        reviewsView.setAdapter(reviewsAdapter);
+
+
+
     }
 
     @Override
@@ -192,6 +212,26 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     public void fetchExtras(String movie_id){
         FetchTrailersTask trailersTask = new FetchTrailersTask();
         trailersTask.execute(movie_id);
+    }
+
+    public interface OnFragmentInteractionListener {
+        void onItemSelected(String movie_key);
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+        mListener = null;
+    }
+
+    public void updateVideoData(List<Video> videos) {
+        this.videoAdapter.setVideoList(videos);
+        this.videoAdapter.notifyDataSetChanged();
+    }
+
+    public void updateReviewsData(List<Reviews> reviews) {
+        this.reviewsAdapter.setReviewsList(reviews);
+        this.reviewsAdapter.notifyDataSetChanged();
     }
 
     public  class FetchTrailersTask extends AsyncTask<String, Void, List<Object>[]> {
@@ -209,10 +249,9 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         @Override
         protected void onPostExecute(List[] movie_data) {
             super.onPostExecute(movie_data);
-            videoAdapter =  new VideoAdapter(movie_data[0]);
-            videoView.setAdapter(videoAdapter);
-            reviewsAdapter =  new ReviewsAdapter(movie_data[1]);
-            reviewsView.setAdapter(reviewsAdapter);
+            // Update the respective Adapters.
+            updateVideoData(movie_data[0]);
+            updateReviewsData(movie_data[1]);
         }
 
         @Override

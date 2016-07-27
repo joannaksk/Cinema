@@ -1,5 +1,6 @@
 package com.example.joanna.cinema;
 
+import android.content.Context;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,33 +16,48 @@ import info.movito.themoviedbapi.model.Video;
  */
 public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHolder> {
 
+    private final Context mContext;
     private List<Video> videoList;
+    private final OnItemClickListener listener;
 
-    public VideoAdapter(List<Video> videoList) {
+    public VideoAdapter(Context context, List<Video> videoList, OnItemClickListener listener) {
+        this.mContext = context;
         this.videoList = videoList;
+        this.listener = listener;
     }
 
     @Override
     public int getItemCount() {
-        return videoList.size();
+        if (videoList != null) {
+            return videoList.size();
+        }
+        return 0;
+    }
+
+    public void setVideoList(List<Video> videos){
+        this.videoList = videos;
     }
 
     public static class VideoViewHolder extends RecyclerView.ViewHolder {
         protected TextView trailer_text;
-        protected TextView trailer_key;
 
         public VideoViewHolder(View v) {
             super(v);
             trailer_text = (TextView)  v.findViewById(R.id.list_item_trailer_textview);
-            trailer_key = (TextView)  v.findViewById(R.id.list_item_trailer_key_textview);
         }
     }
     @Override
     public void onBindViewHolder(VideoViewHolder videoViewHolder, int i) {
         Video video = videoList.get(i);
+        final String movie_key = video.getKey();
 
         videoViewHolder.trailer_text.setText(video.getName());
-        videoViewHolder.trailer_key.setText(video.getKey());
+        videoViewHolder.trailer_text.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                listener.onItemClick(movie_key);
+            }
+        });
     }
     //select XML layout for each card
     @Override
@@ -51,5 +67,9 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
                 inflate(R.layout.list_item_video, viewGroup, false);
 
         return new VideoViewHolder(itemView);
+    }
+
+    public interface OnItemClickListener {
+        void onItemClick(String movie_key);
     }
 }
