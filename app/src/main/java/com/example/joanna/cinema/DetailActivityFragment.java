@@ -1,5 +1,7 @@
 package com.example.joanna.cinema;
 
+import android.content.ContentValues;
+import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -15,13 +17,17 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.joanna.cinema.data.MovieContract;
+import com.example.joanna.cinema.data.MovieProvider;
 import com.squareup.picasso.Picasso;
 
 import java.util.List;
+import java.util.Vector;
 
 import info.movito.themoviedbapi.TmdbApi;
 import info.movito.themoviedbapi.TmdbMovies;
@@ -57,16 +63,18 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
             MovieContract.MovieColumns.COLUMN_POPULARITY,
             MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE,
             MovieContract.MovieColumns.COLUMN_OVERVIEW,
+            MovieContract.MovieColumns.COLUMN_FAVORITE
     };
     static final int COL_MOVIE_DBID = 0;
     static final int COL_MOVIE_ID = 1;
     static final int COL_MOVIE_TITLE = 2;
-    static final int COL_MOVIE_RELEASEE_DATE = 3;
+    static final int COL_MOVIE_RELEASE_DATE = 3;
     static final int COL_MOVIE_DURATION = 4;
     static final int COL_MOVIE_POSTER = 5;
     static final int COL_MOVIE_POPULARITY = 6;
     static final int COL_MOVIE_VOTE_AVERAGE = 7;
     static final int COL_MOVIE_OVERVIEW = 8;
+    static final int COL_MOVIE_FAVORITE = 9;
 
     private TextView movieTitleTextView;
     private ImageView posterView;
@@ -81,6 +89,8 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     private RecyclerView reviewsView;
 
     private OnFragmentInteractionListener mListener;
+    private Cursor detailsCursor;
+    private Button favoritesbutton;
 
     public DetailActivityFragment() {
     }
@@ -89,16 +99,22 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         getLoaderManager().initLoader(MOVIE_DETAIL_LOADER, null, this);
+
+        Bundle arguments = getArguments();
+        if (arguments != null) {
+            dUri = arguments.getParcelable(DetailActivityFragment.DETAIL_URI);
+        }
+
+        // Fetch the Extra data.
+        String movie_id = dUri.getLastPathSegment();
+        fetchExtras(movie_id);
+
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_detail, container, false);
-        Bundle arguments = getArguments();
-        if (arguments != null) {
-            dUri = arguments.getParcelable(DetailActivityFragment.DETAIL_URI);
-        }
 
         movieTitleTextView = (TextView) rootView.findViewById(R.id.textview_movie_title);
         posterView = (ImageView) rootView.findViewById(R.id.posterView);
@@ -120,11 +136,37 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         reviewsView.setHasFixedSize(true);
         reviewsView.setLayoutManager(layout1);
 
-        // Fetch the Extra data.
-        String movie_id = dUri.getLastPathSegment();
-        fetchExtras(movie_id);
+        // Initialise the adapter for the trailers with a null List.
+        videoAdapter =  new VideoAdapter(getActivity(),  null, new VideoAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(String movie_key) {
+                if (movie_key != null) {
+                    ((OnFragmentInteractionListener) getActivity())
+                            .onItemSelected(movie_key);
+                }
+            }
+        });
+        videoView.setAdapter(videoAdapter);
+
+        // Initialise the adapter for the reviews the same way.
+        reviewsAdapter =  new ReviewsAdapter(null);
+        reviewsView.setAdapter(reviewsAdapter);
+
+        // Get the Favorites Button and set a Listener.
+        favoritesbutton = (Button) rootView.findViewById(R.id.favoritesbutton);
+        favoritesbutton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                addFavorite();
+            }
+        });
 
         return rootView;
+    }
+
+    private void addFavorite() {
+        AddFavoritesTask addfavoritestask = new AddFavoritesTask(getActivity());
+        addfavoritestask.execute();
     }
 
     @Override
@@ -146,6 +188,7 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
         Log.v(LOG_TAG, "In onLoadFinished");
         if (!data.moveToFirst()) { return; }
+        detailsCursor = data;
 
         // Title
         String title = data.getString(COL_MOVIE_TITLE);
@@ -168,7 +211,7 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         }
 
         // Year
-        String date = data.getString(COL_MOVIE_RELEASEE_DATE);
+        String date = data.getString(COL_MOVIE_RELEASE_DATE);
         String year = date.substring(0,4);
         yearTextView.setText(year);
 
@@ -184,22 +227,10 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         String overview = data.getString(COL_MOVIE_OVERVIEW);
         overviewTextView.setText(overview);
 
-        // Initialise the adapter for the trailers with a null List.
-        videoAdapter =  new VideoAdapter(getActivity(),  null, new VideoAdapter.OnItemClickListener() {
-            @Override
-            public void onItemClick(String movie_key) {
-                if (movie_key != null) {
-                    ((OnFragmentInteractionListener) getActivity())
-                            .onItemSelected(movie_key);
-                }
-            }
-        });
-        videoView.setAdapter(videoAdapter);
-
-        // Initialise the adapter for the reviews the same way.
-        reviewsAdapter =  new ReviewsAdapter(null);
-        reviewsView.setAdapter(reviewsAdapter);
-
+        // Hide favoritesbutton if this is alreadya fave.
+        if (data.getInt(COL_MOVIE_FAVORITE) != 0) {
+            favoritesbutton.setVisibility(View.GONE);
+        }
 
 
     }
@@ -282,6 +313,54 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
             }
             // This will only happen if there was an error getting or parsing the movies.
             return null;
+        }
+    }
+
+    public class AddFavoritesTask extends AsyncTask<Void, Void, Void> {
+        private String LOG_TAG = AddFavoritesTask.class.getSimpleName();
+        private Context mContext;
+
+        public AddFavoritesTask(Context context){
+            this.mContext = context;
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            try {
+                // Insert the new movie information into the database
+                Vector<ContentValues> cVVector = new Vector<ContentValues>(1);
+
+                ContentValues favoriteValues = new ContentValues();
+                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_MOVIE_ID, detailsCursor.getString(COL_MOVIE_ID));
+                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_TITLE, detailsCursor.getString(COL_MOVIE_TITLE));
+                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_RELEASE_DATE, detailsCursor.getString(COL_MOVIE_RELEASE_DATE));
+                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_DURATION, detailsCursor.getString(COL_MOVIE_DURATION));
+                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_POSTER, detailsCursor.getString(COL_MOVIE_POSTER));
+                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_POPULARITY, detailsCursor.getString(COL_MOVIE_POPULARITY));
+                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_VOTE_AVERAGE, detailsCursor.getString(COL_MOVIE_VOTE_AVERAGE));
+                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_OVERVIEW, detailsCursor.getString(COL_MOVIE_OVERVIEW));
+
+                cVVector.add(favoriteValues);
+                // Proceed to insert new data.
+                int rowsInserted = mContext.getContentResolver().bulkInsert(
+                        MovieProvider.Favorites.LIST_CONTENT_URI,
+                        cVVector.toArray(new ContentValues[cVVector.size()])
+                );
+                Log.d(LOG_TAG, "AddFavoritesTask Complete. " + rowsInserted + " Inserted");
+                return null;
+            } catch (Exception e) {
+                Log.e(LOG_TAG, e.getMessage(), e);
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            favoritesbutton.setVisibility(View.GONE);
+            Toast favoriteAdded = Toast.makeText(mContext, "Favorite Added", Toast.LENGTH_SHORT);
+            favoriteAdded.show();
         }
     }
 }

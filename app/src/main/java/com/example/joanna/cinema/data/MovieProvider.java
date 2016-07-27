@@ -35,7 +35,9 @@ public class MovieProvider {
         String MOVIES = "movies";
         String MOVIES_BY_POPULARITY = "movies/sort/most_popular";
         String MOVIES_BY_RATING = "movies/sort/top_rated";
-//        String FROM_LIST = "fromList";
+        String FAVORITES = "favorites";
+        String FAVORITES_BY_POPULARITY = "favorites/sort/most_popular";
+        String FAVORITES_BY_RATING = "favorites/sort/top_rated";
     }
 
     private static Uri buildUri(String... paths) {
@@ -109,6 +111,82 @@ public class MovieProvider {
         }
 
         @NotifyDelete(paths = Path.MOVIES + "/#")
+        public static Uri[] onDelete(Context context, Uri uri) {
+
+            final long noteId = Long.valueOf(uri.getPathSegments().get(1));
+            Cursor c = context.getContentResolver().query(uri, null, null, null, null);
+            c.moveToFirst();
+            c.close();
+
+            return new Uri[] {
+                    withId(noteId),
+            };
+        }
+    }
+
+    @TableEndpoint(table = MovieDatabase.FAVORITES) public static class Favorites {
+
+        @ContentUri(
+                path = Path.FAVORITES,
+                type = "vnd.android.cursor.dir/favorites")
+        public static final Uri LIST_CONTENT_URI = buildUri(Path.FAVORITES);
+
+        @ContentUri(
+                path = Path.FAVORITES_BY_POPULARITY,
+                type = "vnd.android.cursor.dir/favorites",
+                defaultSort = MovieContract.FavoriteColumns.COLUMN_POPULARITY + " DESC")
+        public static final Uri BY_POPULARITY_CONTENT_URI = buildUri(Path.FAVORITES_BY_POPULARITY);
+
+        @ContentUri(
+                path = Path.FAVORITES_BY_RATING,
+                type = "vnd.android.cursor.dir/favorites",
+                defaultSort = MovieContract.FavoriteColumns.COLUMN_VOTE_AVERAGE + " DESC")
+        public static final Uri BY_RATING_CONTENT_URI = buildUri(Path.FAVORITES_BY_RATING);
+
+        @InexactContentUri(
+                name = "MOVIE_ID",
+                path = Path.FAVORITES + "/#",
+                type = "vnd.android.cursor.item/favorite",
+                whereColumn = MovieContract.FavoriteColumns.COLUMN_MOVIE_ID,
+                pathSegment = 1)
+
+        public static Uri withId(long id) {
+            return buildUri(Path.FAVORITES, String.valueOf(id));
+        }
+
+        @NotifyInsert(paths = Path.FAVORITES)
+        public static Uri[] onInsert(ContentValues values) {
+            final int favoriteId = values.getAsInteger(MovieContract.FavoriteColumns.COLUMN_MOVIE_ID);
+            return new Uri[] {
+                    Favorites.withId(favoriteId),
+            };
+        }
+
+        @NotifyBulkInsert(paths = Path.FAVORITES)
+        public static Uri[] onBulkInsert(Context context, Uri uri, ContentValues[] values, long[] ids) {
+            return new Uri[] {
+                    uri,
+            };
+        }
+
+        @NotifyUpdate(paths = Path.FAVORITES + "/#")
+        public static Uri[] onUpdate(Context context, Uri uri, String where, String[] whereArgs) {
+            final long noteId = Long.valueOf(uri.getPathSegments().get(1));
+            Cursor c = context.getContentResolver().query(
+                    uri,
+                    null,
+                    null,
+                    null,
+                    null);
+            c.moveToFirst();
+            c.close();
+
+            return new Uri[] {
+                    withId(noteId)
+            };
+        }
+
+        @NotifyDelete(paths = Path.FAVORITES + "/#")
         public static Uri[] onDelete(Context context, Uri uri) {
 
             final long noteId = Long.valueOf(uri.getPathSegments().get(1));

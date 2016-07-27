@@ -10,13 +10,16 @@
     <string name="pref_sort_order_label">Sort Order</string>
     <string name="pref_sort_order_key">sort_order</string>
     <string name="pref_sort_order_default">popularity</string>
+    <string name="pref_sort_order_favorites">favorites</string>
     <string-array name="pref_sort_order_names">
         <item>Most Popular</item>
         <item>Highest Rated</item>
+        <item>Favorites</item>
     </string-array>
     <string-array name="pref_sort_order_values">
         <item>popularity</item>
         <item>vote_average</item>
+        <item>favorites</item>
     </string-array>
     <string name="title_activity_detail">DetailActivity</string>
     <string name="title_activity_settings">Settings</string>

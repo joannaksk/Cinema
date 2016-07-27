@@ -27,6 +27,9 @@ public final class MovieDatabase {
     @Table(MovieContract.MovieColumns.class)
     public static final String MOVIES = "movies";
 
+    @Table(MovieContract.FavoriteColumns.class)
+    public static final String FAVORITES = "favorites";
+
     @OnCreate
     public static void onCreate(Context context, SQLiteDatabase db) {
     }

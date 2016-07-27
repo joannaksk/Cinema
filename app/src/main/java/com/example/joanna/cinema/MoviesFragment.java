@@ -1,5 +1,6 @@
 package com.example.joanna.cinema;
 
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -59,6 +60,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
     private MovieAdapter movieAdapter;
     private SwipeRefreshLayout swipeView;
+    private SharedPreferences sharedPreferences;
 
 
     public MoviesFragment() {
@@ -67,6 +69,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
     }
 
     @Override
@@ -123,7 +126,15 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
      * Callback function that runs a new FetchMovieTask and restarts the Movie Loader.
      */
     void onSortChanged( ) {
-        updateMovies();
+        // If the sort has changed to favorites, destroy the loader and re initialise.
+        // otherwise.
+        String defaultSort = getActivity().getString(R.string.pref_sort_order_default);
+        String favoritesSort = getActivity().getString(R.string.pref_sort_order_favorites);
+        String sort = sharedPreferences.getString(getActivity().getString(R.string.pref_sort_order_key),
+                defaultSort);
+        if (!sort.equals(favoritesSort)) {
+            updateMovies();
+        }
         getLoaderManager().restartLoader(MOVIE_LOADER, null, this);
     }
 
@@ -135,7 +146,17 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-        Uri movieUri = MovieProvider.Movies.LIST_CONTENT_URI;
+        String defaultSort = getActivity().getString(R.string.pref_sort_order_default);
+        String favoritesSort = getActivity().getString(R.string.pref_sort_order_favorites);
+        String sort = sharedPreferences.getString(getActivity().getString(R.string.pref_sort_order_key),
+                defaultSort);
+        Uri movieUri;
+        if (sort.equals(favoritesSort)) {
+            movieUri = MovieProvider.Favorites.LIST_CONTENT_URI;
+        } else {
+            movieUri = MovieProvider.Movies.LIST_CONTENT_URI;
+        }
+
 
         return new CursorLoader(
                 getActivity(),
@@ -201,7 +222,6 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                 List<MovieDb> movies_list;
 
                 // Decide whether to fetch the most popular or the top rated movies.
-                SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
                 String defaultSort = getActivity().getString(R.string.pref_sort_order_default);
                 String sort = sharedPreferences.getString(getActivity().getString(R.string.pref_sort_order_key),
                         defaultSort);
@@ -230,6 +250,20 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                     movieValues.put(MovieContract.MovieColumns.COLUMN_POPULARITY, movie.getPopularity());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE, movie.getVoteAverage());
                     movieValues.put(MovieContract.MovieColumns.COLUMN_OVERVIEW, movie.getOverview());
+
+                    // If this movie_id exists in favorites, tag this as a favorites.
+                    Uri query_uri = ContentUris.withAppendedId(MovieProvider.Favorites.LIST_CONTENT_URI, movie.getId());
+                    String[] title = {MovieContract.MovieColumns._ID, MovieContract.MovieColumns.COLUMN_TITLE};
+                    Cursor favorite = mContext.getContentResolver().query(query_uri, title, null, null, null);
+                    if (favorite.getCount() != 0) {
+                        favorite.moveToFirst();
+                        if (favorite.getString(1) != null) {
+                            String name = favorite.getString(1);
+                            movieValues.put(MovieContract.MovieColumns.COLUMN_FAVORITE, 1);
+                            Log.d(LOG_TAG, name + "is a favorite");
+                        }
+                    }
+                    favorite.close();
 
                     cVVector.add(movieValues);
                     Log.d(LOG_TAG, "FetchMovieTask Adding ID: " + movie.getId() + " : " + movie.getTitle() + " To Be Inserted");

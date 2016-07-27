@@ -46,7 +46,41 @@ public class MovieContract{
         @DataType(TEXT)
         public final String COLUMN_OVERVIEW = "overview";
 
+        @DataType(INTEGER)
+        public final String COLUMN_FAVORITE = "favorite";
 
+    }
+    public interface FavoriteColumns {
+        @DataType(INTEGER) @PrimaryKey
+        @AutoIncrement
+        public static final String _ID = "_id";
+
+        @DataType(INTEGER)
+        public static final String _COUNT = "_count";
+
+        @DataType(TEXT) @Unique (onConflict = ConflictResolutionType.REPLACE)
+        public static final String COLUMN_MOVIE_ID = "movie_id";
+
+        @DataType(TEXT) @Unique (onConflict = ConflictResolutionType.REPLACE)
+        public static final String COLUMN_TITLE = "title";
+
+        @DataType(TEXT)
+        public static final String COLUMN_RELEASE_DATE = "release_date";
+
+        @DataType(TEXT)
+        public static final String COLUMN_DURATION = "duration";
+
+        @DataType(TEXT)
+        public static final String COLUMN_POSTER = "movie_poster";
+
+        @DataType(INTEGER)
+        public static final String COLUMN_POPULARITY = "popularity";
+
+        @DataType(INTEGER)
+        public final String COLUMN_VOTE_AVERAGE = "vote_average";
+
+        @DataType(TEXT)
+        public final String COLUMN_OVERVIEW = "overview";
 
     }
 }
