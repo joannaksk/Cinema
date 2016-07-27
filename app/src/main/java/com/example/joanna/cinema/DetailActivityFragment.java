@@ -2,12 +2,15 @@ package com.example.joanna.cinema;
 
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +20,21 @@ import android.widget.TextView;
 
 import com.example.joanna.cinema.data.MovieContract;
 import com.squareup.picasso.Picasso;
+
+import java.util.List;
+
+import info.movito.themoviedbapi.TmdbApi;
+import info.movito.themoviedbapi.TmdbMovies;
+import info.movito.themoviedbapi.model.MovieDb;
+import info.movito.themoviedbapi.model.Reviews;
+import info.movito.themoviedbapi.model.Video;
+
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.credits;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.images;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.releases;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.reviews;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.similar;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.videos;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -31,6 +49,7 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
     private static final String[] MOVIE_DETAIL_COLUMNS = {
             MovieContract.MovieColumns._ID,
+            MovieContract.MovieColumns.COLUMN_MOVIE_ID,
             MovieContract.MovieColumns.COLUMN_TITLE,
             MovieContract.MovieColumns.COLUMN_RELEASE_DATE,
             MovieContract.MovieColumns.COLUMN_DURATION,
@@ -40,13 +59,14 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
             MovieContract.MovieColumns.COLUMN_OVERVIEW,
     };
     static final int COL_MOVIE_DBID = 0;
-    static final int COL_MOVIE_TITLE = 1;
-    static final int COL_MOVIE_RELEASEE_DATE = 2;
-    static final int COL_MOVIE_DURATION = 3;
-    static final int COL_MOVIE_POSTER = 4;
-    static final int COL_MOVIE_POPULARITY = 5;
-    static final int COL_MOVIE_VOTE_AVERAGE = 6;
-    static final int COL_MOVIE_OVERVIEW = 7;
+    static final int COL_MOVIE_ID = 1;
+    static final int COL_MOVIE_TITLE = 2;
+    static final int COL_MOVIE_RELEASEE_DATE = 3;
+    static final int COL_MOVIE_DURATION = 4;
+    static final int COL_MOVIE_POSTER = 5;
+    static final int COL_MOVIE_POPULARITY = 6;
+    static final int COL_MOVIE_VOTE_AVERAGE = 7;
+    static final int COL_MOVIE_OVERVIEW = 8;
 
     private TextView movieTitleTextView;
     private ImageView posterView;
@@ -54,6 +74,11 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     private TextView durationTextView;
     private TextView voteAverageTextView;
     private TextView overviewTextView;
+
+    private VideoAdapter videoAdapter;
+    private RecyclerView videoView;
+    private ReviewsAdapter reviewsAdapter;
+    private RecyclerView reviewsView;
 
     public DetailActivityFragment() {
     }
@@ -79,6 +104,23 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         durationTextView = (TextView) rootView.findViewById(R.id.textView_duration);
         voteAverageTextView = (TextView) rootView.findViewById(R.id.textView_vote_average);
         overviewTextView = (TextView) rootView.findViewById(R.id.textView_overview);
+
+
+        LinearLayoutManager layout = new LinearLayoutManager(getActivity());
+        layout.setOrientation(LinearLayoutManager.VERTICAL);
+        videoView  = (RecyclerView)rootView.findViewById(R.id.list_videos);
+        videoView.setHasFixedSize(true);
+        videoView.setLayoutManager(layout);
+
+        LinearLayoutManager layout1 = new LinearLayoutManager(getActivity());
+        layout1.setOrientation(LinearLayoutManager.VERTICAL);
+        reviewsView  = (RecyclerView)rootView.findViewById(R.id.list_reviews);
+        reviewsView.setHasFixedSize(true);
+        reviewsView.setLayoutManager(layout1);
+
+        // Fetch the Extra data.
+        String movie_id = dUri.getLastPathSegment();
+        fetchExtras(movie_id);
 
         return rootView;
     }
@@ -136,9 +178,6 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         String vote_average = data.getString(COL_MOVIE_VOTE_AVERAGE);
         voteAverageTextView.setText(vote_average+"/10");
 
-        // Popularity
-        String popularity = data.getString(COL_MOVIE_POPULARITY);
-
         // Overview
         String overview = data.getString(COL_MOVIE_OVERVIEW);
         overviewTextView.setText(overview);
@@ -148,5 +187,62 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     @Override
     public void onLoaderReset(Loader<Cursor> loader) {
 
+    }
+
+    public void fetchExtras(String movie_id){
+        FetchTrailersTask trailersTask = new FetchTrailersTask();
+        trailersTask.execute(movie_id);
+    }
+
+    public  class FetchTrailersTask extends AsyncTask<String, Void, List<Object>[]> {
+        final String LOG_TAG = FetchTrailersTask.class.getSimpleName();
+        private List[] movie_data = new List[2];
+
+        public FetchTrailersTask() {
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected void onPostExecute(List[] movie_data) {
+            super.onPostExecute(movie_data);
+            videoAdapter =  new VideoAdapter(movie_data[0]);
+            videoView.setAdapter(videoAdapter);
+            reviewsAdapter =  new ReviewsAdapter(movie_data[1]);
+            reviewsView.setAdapter(reviewsAdapter);
+        }
+
+        @Override
+        protected List[] doInBackground(String... params) {
+
+            // Don't do a thing if there is no id.
+            if (params!=null & params[0]!=null) {
+                try {
+                    // Try to fetch the trailers.
+                    TmdbApi tmdbApi = new TmdbApi(BuildConfig.MOVIE_DB_API_KEY);
+                    TmdbMovies movies = tmdbApi.getMovies();
+
+                    // Get the current movie using the id passed in.
+                    int movie_id = Integer.parseInt(params[0]);
+                    MovieDb movie = movies.getMovie(movie_id, "en", credits, videos, releases, images, similar, reviews);
+
+                    List<Video> videos = movie.getVideos();
+                    movie_data[0] = videos;
+                    List<Reviews> reviews = movie.getReviews();
+                    movie_data[1] = reviews;
+
+                    return movie_data;
+
+                } catch (Exception e) {
+                    Log.e(LOG_TAG, e.getMessage(), e);
+                    e.printStackTrace();
+                }
+            }
+            // This will only happen if there was an error getting or parsing the movies.
+            return null;
+        }
     }
 }

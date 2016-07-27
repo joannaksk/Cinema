@@ -32,6 +32,13 @@ import info.movito.themoviedbapi.TmdbApi;
 import info.movito.themoviedbapi.TmdbMovies;
 import info.movito.themoviedbapi.model.MovieDb;
 
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.credits;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.images;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.releases;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.reviews;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.similar;
+import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.videos;
+
 /**
  * A placeholder fragment containing a simple view.
  */
@@ -95,7 +102,8 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
             public void onItemClick(Long movie_id) {
                 if (movie_id != null) {
                     ((Callback) getActivity())
-                            .onItemSelected(MovieProvider.Movies.withId(movie_id));                }
+                            .onItemSelected(MovieProvider.Movies.withId(movie_id));
+                }
             }
         });
         recyclerView.setAdapter(movieAdapter);
@@ -211,7 +219,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
                 Vector<ContentValues> cVVector = new Vector<ContentValues>(movies_list.size());
 
                 for (MovieDb movie : movies_list) {
-                    MovieDb movie_details = movies.getMovie(movie.getId(), "en", null);
+                    MovieDb movie_details = movies.getMovie(movie.getId(), "en", credits, videos, releases, images, similar, reviews);
                     ContentValues movieValues = new ContentValues();
 
                     movieValues.put(MovieContract.MovieColumns.COLUMN_MOVIE_ID, movie.getId());

@@ -21,6 +21,7 @@ android {
     buildTypes.each {
         it.buildConfigField 'String', 'MOVIE_DB_API_KEY', "\"\""
         it.buildConfigField 'String', 'MOVIE_POSTER_BASE_PATH', "\"http://image.tmdb.org/t/p/w500/\""
+        it.buildConfigField 'String', 'MOVIE_VIDEOS_BASE_PATH', "\"https://www.youtube.com/watch?v=\""
     }
 }
 

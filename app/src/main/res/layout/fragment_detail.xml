@@ -57,7 +57,7 @@
                         android:layout_height="wrap_content"
                         android:id="@+id/textView_year"
                         android:textSize="26sp"
-                        android:textColor="#808080"/>
+                        android:textColor="@color/colorText"/>
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -65,7 +65,7 @@
                         android:id="@+id/textView_duration"
                         android:textAppearance="?android:textAppearanceLarge"
                         android:textStyle="italic"
-                        android:textColor="#808080"/>
+                        android:textColor="@color/colorText"/>
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -81,8 +81,8 @@
                         android:text="@string/mark_as_favorite"
                         android:textSize="12sp"
                         android:id="@+id/button"
-                        android:textColor="#808080"
-                        android:background="#80cbc4"
+                        android:textColor="@color/colorText"
+                        android:background="@color/colorAccent"
                         android:layout_marginTop="12dp"/>
                 </LinearLayout>
 
@@ -100,12 +100,37 @@
                 android:layout_height="1.5dp"
                 android:id="@+id/separator"
                 android:visibility="visible"
-                android:background="#808080"
+                android:background="@color/colorText"
                 android:paddingTop="8dp"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="lalala"/>
+                android:text="Trailers:"
+                android:textAppearance="?android:textAppearanceLarge"
+                android:paddingTop="8dp"
+                android:textColor="@color/colorText"/>
+            <android.support.v7.widget.RecyclerView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/list_videos" />
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1.5dp"
+                android:id="@+id/separator_1"
+                android:visibility="visible"
+                android:background="@color/colorText"
+                android:paddingTop="8dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reviews:"
+                android:textAppearance="?android:textAppearanceLarge"
+                android:paddingTop="8dp"
+                android:textColor="@color/colorText"/>
+            <android.support.v7.widget.RecyclerView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/list_reviews" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
