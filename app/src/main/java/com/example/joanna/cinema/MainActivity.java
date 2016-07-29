@@ -10,6 +10,8 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.example.joanna.cinema.sync.CinemaSyncAdapter;
+
 public class MainActivity extends AppCompatActivity implements MoviesFragment.Callback {
     // mSort is the sort currently stored in the Shared Preferences.
     private String mSort;
@@ -27,15 +29,7 @@ public class MainActivity extends AppCompatActivity implements MoviesFragment.Ca
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-
-//        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-//        fab.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
-//            }
-//        });
+        CinemaSyncAdapter.initializeSyncAdapter(this);
     }
 
     @Override

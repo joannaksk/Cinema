@@ -1,12 +1,8 @@
 package com.example.joanna.cinema;
 
-import android.content.ContentUris;
-import android.content.ContentValues;
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
@@ -25,20 +21,7 @@ import android.view.ViewGroup;
 
 import com.example.joanna.cinema.data.MovieContract;
 import com.example.joanna.cinema.data.MovieProvider;
-
-import java.util.List;
-import java.util.Vector;
-
-import info.movito.themoviedbapi.TmdbApi;
-import info.movito.themoviedbapi.TmdbMovies;
-import info.movito.themoviedbapi.model.MovieDb;
-
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.credits;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.images;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.releases;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.reviews;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.similar;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.videos;
+import com.example.joanna.cinema.sync.CinemaSyncAdapter;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -118,8 +101,10 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
      * Function that creates and executes a FetchMovieTask.
      */
     private void updateMovies() {
-        FetchMovieTask movieTask = new FetchMovieTask(getActivity());
-        movieTask.execute();
+        //Now Syncing
+        CinemaSyncAdapter.syncImmediately(getActivity());
+        movieAdapter.notifyDataSetChanged();
+        swipeView.setRefreshing(false);
     }
 
     /**
@@ -188,107 +173,5 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
          * DetailFragmentCallback for when an item has been selected.
          */
         public void onItemSelected(Uri movieUri);
-    }
-
-
-    public  class FetchMovieTask extends AsyncTask<Void, Void, Void> {
-        final String LOG_TAG = FetchMovieTask.class.getSimpleName();
-        private final Context mContext;
-
-        public FetchMovieTask(Context mContext) {
-            this.mContext = mContext;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-        }
-
-        @Override
-        protected void onPostExecute(Void aVoid) {
-            super.onPostExecute(aVoid);
-            movieAdapter.notifyDataSetChanged();
-            swipeView.setRefreshing(false);
-
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-
-            try {
-                // Try to fetch the movies.
-                TmdbApi tmdbApi = new TmdbApi(BuildConfig.MOVIE_DB_API_KEY);
-                TmdbMovies movies = tmdbApi.getMovies();
-                List<MovieDb> movies_list;
-
-                // Decide whether to fetch the most popular or the top rated movies.
-                String defaultSort = getActivity().getString(R.string.pref_sort_order_default);
-                String sort = sharedPreferences.getString(getActivity().getString(R.string.pref_sort_order_key),
-                        defaultSort);
-
-                // Changed this because I was comparing references instead of the actual text.
-                if (sort.equals(defaultSort)) {
-                    movies_list  = movies.getPopularMovies("en", 0).getResults();
-                    Log.d(LOG_TAG, "FetchMovieTask Complete. Popular Inserted");
-                } else {
-                    movies_list = movies.getTopRatedMovies("en", 0).getResults();
-                    Log.d(LOG_TAG, "FetchMovieTask Complete. Top Rated Inserted");
-                }
-
-                // Insert the new movie information into the database
-                Vector<ContentValues> cVVector = new Vector<ContentValues>(movies_list.size());
-
-                for (MovieDb movie : movies_list) {
-                    MovieDb movie_details = movies.getMovie(movie.getId(), "en", credits, videos, releases, images, similar, reviews);
-                    ContentValues movieValues = new ContentValues();
-
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_MOVIE_ID, movie.getId());
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_TITLE, movie.getTitle());
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_RELEASE_DATE, movie.getReleaseDate());
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_DURATION, movie_details.getRuntime());
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_POSTER, movie.getPosterPath());
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_POPULARITY, movie.getPopularity());
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE, movie.getVoteAverage());
-                    movieValues.put(MovieContract.MovieColumns.COLUMN_OVERVIEW, movie.getOverview());
-
-                    // If this movie_id exists in favorites, tag this as a favorites.
-                    Uri query_uri = ContentUris.withAppendedId(MovieProvider.Favorites.LIST_CONTENT_URI, movie.getId());
-                    String[] title = {MovieContract.MovieColumns._ID, MovieContract.MovieColumns.COLUMN_TITLE};
-                    Cursor favorite = mContext.getContentResolver().query(query_uri, title, null, null, null);
-                    if (favorite.getCount() != 0) {
-                        favorite.moveToFirst();
-                        if (favorite.getString(1) != null) {
-                            String name = favorite.getString(1);
-                            movieValues.put(MovieContract.MovieColumns.COLUMN_FAVORITE, 1);
-                            Log.d(LOG_TAG, name + "is a favorite");
-                        }
-                    }
-                    favorite.close();
-
-                    cVVector.add(movieValues);
-                    Log.d(LOG_TAG, "FetchMovieTask Adding ID: " + movie.getId() + " : " + movie.getTitle() + " To Be Inserted");
-                }
-
-                // Add new data to database
-                if ( cVVector.size() > 0 ) {
-                    // Clear the database because I only want to have 20 items in there at any time.
-                    int rowsDeleted = mContext.getContentResolver().delete(MovieProvider.Movies.LIST_CONTENT_URI, null, null);
-                    Log.d(LOG_TAG, "FetchMovieTask Deleting Old Data: " + rowsDeleted + " Deleted");
-                    // Proceed to insert new data.
-                    int rowsInserted = mContext.getContentResolver().bulkInsert(
-                            MovieProvider.Movies.LIST_CONTENT_URI,
-                            cVVector.toArray(new ContentValues[cVVector.size()])
-                    );
-                    Log.d(LOG_TAG, "FetchMovieTask Complete. " + rowsInserted + " Inserted");
-                }
-                return null;
-            }
-            catch (Exception e) {
-                Log.e(LOG_TAG, e.getMessage(), e);
-                e.printStackTrace();
-            }
-            // This will only happen if there was an error getting or parsing the movies.
-            return null;
-        }
     }
 }

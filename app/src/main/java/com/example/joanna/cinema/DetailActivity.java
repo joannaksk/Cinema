@@ -7,7 +7,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 
-public class DetailActivity extends AppCompatActivity implements DetailActivityFragment.OnFragmentInteractionListener{
+public class DetailActivity extends AppCompatActivity implements ExtrasFragment.OnFragmentInteractionListener{
 
     private static final String LOG_TAG = DetailActivity.class.getSimpleName();
 

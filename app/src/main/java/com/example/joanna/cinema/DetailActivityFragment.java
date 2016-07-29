@@ -1,18 +1,18 @@
 package com.example.joanna.cinema;
 
-import android.content.ContentValues;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,24 +23,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.joanna.cinema.data.MovieContract;
-import com.example.joanna.cinema.data.MovieProvider;
+import com.example.joanna.cinema.service.AddFavoritesService;
 import com.squareup.picasso.Picasso;
-
-import java.util.List;
-import java.util.Vector;
-
-import info.movito.themoviedbapi.TmdbApi;
-import info.movito.themoviedbapi.TmdbMovies;
-import info.movito.themoviedbapi.model.MovieDb;
-import info.movito.themoviedbapi.model.Reviews;
-import info.movito.themoviedbapi.model.Video;
-
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.credits;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.images;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.releases;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.reviews;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.similar;
-import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.videos;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -82,33 +66,37 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     private TextView durationTextView;
     private TextView voteAverageTextView;
     private TextView overviewTextView;
-
-    private VideoAdapter videoAdapter;
-    private RecyclerView videoView;
-    private ReviewsAdapter reviewsAdapter;
-    private RecyclerView reviewsView;
-
-    private OnFragmentInteractionListener mListener;
     private Cursor detailsCursor;
     private Button favoritesbutton;
+
+    // An instance of the status broadcast receiver
+    DownloadStateReceiver mDownloadStateReceiver;
 
     public DetailActivityFragment() {
     }
 
     @Override
-    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
-        super.onActivityCreated(savedInstanceState);
-        getLoaderManager().initLoader(MOVIE_DETAIL_LOADER, null, this);
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-        Bundle arguments = getArguments();
-        if (arguments != null) {
-            dUri = arguments.getParcelable(DetailActivityFragment.DETAIL_URI);
-        }
+        /*
+         * Creates an intent filter for DownloadStateReceiver that intercepts broadcast Intents
+         */
 
-        // Fetch the Extra data.
-        String movie_id = dUri.getLastPathSegment();
-        fetchExtras(movie_id);
+        // The filter's action is BROADCAST_ACTION
+        IntentFilter statusIntentFilter = new IntentFilter(
+                Constants.BROADCAST_ACTION);
 
+        // Sets the filter's category to DEFAULT
+        statusIntentFilter.addCategory(Intent.CATEGORY_DEFAULT);
+
+        // Instantiates a new DownloadStateReceiver
+        mDownloadStateReceiver = new DownloadStateReceiver();
+
+        // Registers the DownloadStateReceiver and its intent filters
+        LocalBroadcastManager.getInstance(getActivity()).registerReceiver(
+                mDownloadStateReceiver,
+                statusIntentFilter);
     }
 
     @Override
@@ -123,35 +111,6 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         voteAverageTextView = (TextView) rootView.findViewById(R.id.textView_vote_average);
         overviewTextView = (TextView) rootView.findViewById(R.id.textView_overview);
 
-
-        LinearLayoutManager layout = new LinearLayoutManager(getActivity());
-        layout.setOrientation(LinearLayoutManager.VERTICAL);
-        videoView  = (RecyclerView)rootView.findViewById(R.id.list_videos);
-        videoView.setHasFixedSize(true);
-        videoView.setLayoutManager(layout);
-
-        LinearLayoutManager layout1 = new LinearLayoutManager(getActivity());
-        layout1.setOrientation(LinearLayoutManager.VERTICAL);
-        reviewsView  = (RecyclerView)rootView.findViewById(R.id.list_reviews);
-        reviewsView.setHasFixedSize(true);
-        reviewsView.setLayoutManager(layout1);
-
-        // Initialise the adapter for the trailers with a null List.
-        videoAdapter =  new VideoAdapter(getActivity(),  null, new VideoAdapter.OnItemClickListener() {
-            @Override
-            public void onItemClick(String movie_key) {
-                if (movie_key != null) {
-                    ((OnFragmentInteractionListener) getActivity())
-                            .onItemSelected(movie_key);
-                }
-            }
-        });
-        videoView.setAdapter(videoAdapter);
-
-        // Initialise the adapter for the reviews the same way.
-        reviewsAdapter =  new ReviewsAdapter(null);
-        reviewsView.setAdapter(reviewsAdapter);
-
         // Get the Favorites Button and set a Listener.
         favoritesbutton = (Button) rootView.findViewById(R.id.favoritesbutton);
         favoritesbutton.setOnClickListener(new View.OnClickListener() {
@@ -161,12 +120,33 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
             }
         });
 
+        Bundle arguments = getArguments();
+        if (arguments != null) {
+            dUri = arguments.getParcelable(DetailActivityFragment.DETAIL_URI);
+        }
+
+        // Add the extras fragment.
+        String movie_id = dUri.getLastPathSegment();
+        ExtrasFragment extras = new ExtrasFragment();
+        Bundle bundle = new Bundle();
+        bundle.putString("movie_id", movie_id);
+        extras.setArguments(bundle);
+        this.getChildFragmentManager().beginTransaction().add(R.id.extras_fragment, extras).commit();
+
         return rootView;
     }
 
+    @Override
+    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        getLoaderManager().initLoader(MOVIE_DETAIL_LOADER, null, this);
+    }
+
     private void addFavorite() {
-        AddFavoritesTask addfavoritestask = new AddFavoritesTask(getActivity());
-        addfavoritestask.execute();
+        Intent intent = new Intent(getActivity(), AddFavoritesService.class);
+        Bundle details = parcelData(detailsCursor);
+        intent.putExtra(AddFavoritesService.MOVIE_DETAILS, details);
+        getActivity().startService(intent);
     }
 
     @Override
@@ -227,7 +207,7 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         String overview = data.getString(COL_MOVIE_OVERVIEW);
         overviewTextView.setText(overview);
 
-        // Hide favoritesbutton if this is alreadya fave.
+        // Hide favoritesbutton if this is already a fave.
         if (data.getInt(COL_MOVIE_FAVORITE) != 0) {
             favoritesbutton.setVisibility(View.GONE);
         }
@@ -240,127 +220,57 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
     }
 
-    public void fetchExtras(String movie_id){
-        FetchTrailersTask trailersTask = new FetchTrailersTask();
-        trailersTask.execute(movie_id);
-    }
-
-    public interface OnFragmentInteractionListener {
-        void onItemSelected(String movie_key);
-    }
-
     @Override
-    public void onDetach() {
-        super.onDetach();
-        mListener = null;
+    public void onDestroy() {
+        // If the DownloadStateReceiver still exists, unregister it and set it to null
+        if (mDownloadStateReceiver != null) {
+            LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(mDownloadStateReceiver);
+            mDownloadStateReceiver = null;
+        }
+        super.onDestroy();
     }
 
-    public void updateVideoData(List<Video> videos) {
-        this.videoAdapter.setVideoList(videos);
-        this.videoAdapter.notifyDataSetChanged();
+    private Bundle parcelData(Cursor cursor) {
+        Bundle bundle = new Bundle();
+        bundle.putString(MovieContract.FavoriteColumns.COLUMN_MOVIE_ID, cursor.getString(COL_MOVIE_ID));
+        bundle.putString(MovieContract.FavoriteColumns.COLUMN_TITLE, cursor.getString(COL_MOVIE_TITLE));
+        bundle.putString(MovieContract.FavoriteColumns.COLUMN_RELEASE_DATE, cursor.getString(COL_MOVIE_RELEASE_DATE));
+        bundle.putString(MovieContract.FavoriteColumns.COLUMN_DURATION, cursor.getString(COL_MOVIE_DURATION));
+        bundle.putString(MovieContract.FavoriteColumns.COLUMN_POSTER, cursor.getString(COL_MOVIE_POSTER));
+        bundle.putString(MovieContract.FavoriteColumns.COLUMN_POPULARITY, cursor.getString(COL_MOVIE_POPULARITY));
+        bundle.putString(MovieContract.FavoriteColumns.COLUMN_VOTE_AVERAGE, cursor.getString(COL_MOVIE_VOTE_AVERAGE));
+        bundle.putString(MovieContract.FavoriteColumns.COLUMN_OVERVIEW, cursor.getString(COL_MOVIE_OVERVIEW));
+        return bundle;
     }
 
-    public void updateReviewsData(List<Reviews> reviews) {
-        this.reviewsAdapter.setReviewsList(reviews);
-        this.reviewsAdapter.notifyDataSetChanged();
-    }
+    /**
+     * This class uses the BroadcastReceiver framework to detect and handle status messages from
+     * the service that downloads adds Favorites.
+     */
+    private class DownloadStateReceiver extends BroadcastReceiver {
 
-    public  class FetchTrailersTask extends AsyncTask<String, Void, List<Object>[]> {
-        final String LOG_TAG = FetchTrailersTask.class.getSimpleName();
-        private List[] movie_data = new List[2];
+        private DownloadStateReceiver() {
 
-        public FetchTrailersTask() {
+            // prevents instantiation by other packages.
         }
-
+        /**
+         *
+         * This method is called by the system when a broadcast Intent is matched by this class'
+         * intent filters
+         *
+         * @param context An Android context
+         * @param intent The incoming broadcast Intent
+         */
         @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-        }
-
-        @Override
-        protected void onPostExecute(List[] movie_data) {
-            super.onPostExecute(movie_data);
-            // Update the respective Adapters.
-            updateVideoData(movie_data[0]);
-            updateReviewsData(movie_data[1]);
-        }
-
-        @Override
-        protected List[] doInBackground(String... params) {
-
-            // Don't do a thing if there is no id.
-            if (params!=null & params[0]!=null) {
-                try {
-                    // Try to fetch the trailers.
-                    TmdbApi tmdbApi = new TmdbApi(BuildConfig.MOVIE_DB_API_KEY);
-                    TmdbMovies movies = tmdbApi.getMovies();
-
-                    // Get the current movie using the id passed in.
-                    int movie_id = Integer.parseInt(params[0]);
-                    MovieDb movie = movies.getMovie(movie_id, "en", credits, videos, releases, images, similar, reviews);
-
-                    List<Video> videos = movie.getVideos();
-                    movie_data[0] = videos;
-                    List<Reviews> reviews = movie.getReviews();
-                    movie_data[1] = reviews;
-
-                    return movie_data;
-
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, e.getMessage(), e);
-                    e.printStackTrace();
-                }
+        public void onReceive(Context context, Intent intent) {
+            /*
+             * Gets the status from the Intent's extended data, and chooses the appropriate action
+             */
+            if (intent.getBooleanExtra(Constants.ADD_STATUS, Constants.STATE_ACTION_INCOMPLETE)) {
+                favoritesbutton.setVisibility(View.GONE);
+                Toast favoriteAdded = Toast.makeText(getActivity(), "Favorite Added", Toast.LENGTH_SHORT);
+                favoriteAdded.show();
             }
-            // This will only happen if there was an error getting or parsing the movies.
-            return null;
-        }
-    }
-
-    public class AddFavoritesTask extends AsyncTask<Void, Void, Void> {
-        private String LOG_TAG = AddFavoritesTask.class.getSimpleName();
-        private Context mContext;
-
-        public AddFavoritesTask(Context context){
-            this.mContext = context;
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            try {
-                // Insert the new movie information into the database
-                Vector<ContentValues> cVVector = new Vector<ContentValues>(1);
-
-                ContentValues favoriteValues = new ContentValues();
-                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_MOVIE_ID, detailsCursor.getString(COL_MOVIE_ID));
-                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_TITLE, detailsCursor.getString(COL_MOVIE_TITLE));
-                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_RELEASE_DATE, detailsCursor.getString(COL_MOVIE_RELEASE_DATE));
-                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_DURATION, detailsCursor.getString(COL_MOVIE_DURATION));
-                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_POSTER, detailsCursor.getString(COL_MOVIE_POSTER));
-                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_POPULARITY, detailsCursor.getString(COL_MOVIE_POPULARITY));
-                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_VOTE_AVERAGE, detailsCursor.getString(COL_MOVIE_VOTE_AVERAGE));
-                favoriteValues.put(MovieContract.FavoriteColumns.COLUMN_OVERVIEW, detailsCursor.getString(COL_MOVIE_OVERVIEW));
-
-                cVVector.add(favoriteValues);
-                // Proceed to insert new data.
-                int rowsInserted = mContext.getContentResolver().bulkInsert(
-                        MovieProvider.Favorites.LIST_CONTENT_URI,
-                        cVVector.toArray(new ContentValues[cVVector.size()])
-                );
-                Log.d(LOG_TAG, "AddFavoritesTask Complete. " + rowsInserted + " Inserted");
-                return null;
-            } catch (Exception e) {
-                Log.e(LOG_TAG, e.getMessage(), e);
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void aVoid) {
-            super.onPostExecute(aVoid);
-            favoritesbutton.setVisibility(View.GONE);
-            Toast favoriteAdded = Toast.makeText(mContext, "Favorite Added", Toast.LENGTH_SHORT);
-            favoriteAdded.show();
         }
     }
 }

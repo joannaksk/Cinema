@@ -2,7 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.joanna.cinema">
 
+    <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS" />
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
 
     <application
         android:allowBackup="true"
@@ -37,11 +40,41 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.example.joanna.cinema.MainActivity" />
         </activity>
+
+        <!--Movie Provider-->
         <provider
             android:authorities="com.example.joanna.cinema.MovieProvider"
             android:name="com.example.joanna.cinema.provider.MovieProvider"
             android:enabled="true"
             android:exported="true"/>
+
+        <!--Add Favorite Service-->
+        <service android:name=".service.AddFavoritesService"
+            android:exported="false"
+            android:enabled="true"/>
+
+        <!-- SyncAdapter's dummy authentication service -->
+        <service android:name=".sync.CinemaAuthenticatorService">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator" />
+        </service>
+
+        <!-- The SyncAdapter service -->
+        <service
+            android:name=".sync.CinemaSyncService"
+            android:exported="true"
+            >
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data
+                android:name="android.content.SyncAdapter"
+                android:resource="@xml/syncadapter" />
+        </service>
     </application>
 
 </manifest>
