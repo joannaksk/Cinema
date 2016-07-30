@@ -2,6 +2,8 @@ package com.example.joanna.cinema.sync;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
@@ -17,9 +19,12 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.util.Log;
 
 import com.example.joanna.cinema.BuildConfig;
+import com.example.joanna.cinema.MainActivity;
 import com.example.joanna.cinema.R;
 import com.example.joanna.cinema.data.MovieContract;
 import com.example.joanna.cinema.data.MovieProvider;
@@ -51,7 +56,7 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
     };
     private static final int INDEX_MOVIE_TITLE = 2;
     private static final int INDEX_MOVIE_RELEASE_DATE = 3;
-    private static final int MOVIE_NOTIFICATION_ID = 1;
+    private static final int MOVIE_NOTIFICATION_ID = 1806;
     public static  int SYNC_INTERVAL;
     public static  int SYNC_FLEXTIME;
     private long start_of_sync;
@@ -89,6 +94,7 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
 
                 // Decide whether to fetch the most popular or the top rated movies.
                 String defaultSort = mContext.getString(R.string.pref_sort_order_default);
+                sharedPreferences = PreferenceManager.getDefaultSharedPreferences(mContext);
                 String sort = sharedPreferences.getString(mContext.getString(R.string.pref_sort_order_key),
                         defaultSort);
 
@@ -150,6 +156,7 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
 
                 Intent i = new Intent(CinemaSyncService.ACTION_SYNC_FINISHED);
                 mContext.sendBroadcast(i);
+                notifyMovie();
 
                 end_of_sync = System.currentTimeMillis();
                 Log.d(LOG_TAG, "End of Sync : " + end_of_sync);
@@ -256,5 +263,66 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
 
     public static void initializeSyncAdapter(Context context) {
         getSyncAccount(context);
+    }
+
+    private void notifyMovie() {
+        Context context = getContext();
+        //checking the last update and notify if it' the first of the day
+        String displayNotificationsKey = context.getString(R.string.pref_enable_notifications_key);
+        boolean displayNotifications = sharedPreferences.getBoolean(displayNotificationsKey,
+                Boolean.parseBoolean(context.getString(R.string.pref_enable_notifications_default)));
+
+        if (displayNotifications) {
+
+            String defaultSort = mContext.getString(R.string.pref_sort_order_default);
+            String favoritesSort = mContext.getString(R.string.pref_sort_order_favorites);
+            String sort = sharedPreferences.getString(mContext.getString(R.string.pref_sort_order_key),
+                    defaultSort);
+            if (!sort.equals(favoritesSort)) {
+
+                Uri movieUri = MovieProvider.Movies.LIST_CONTENT_URI;
+
+                // we'll query our contentProvider, as always
+                Cursor cursor = context.getContentResolver().query(movieUri, NOTIFY_MOVIE_PROJECTION, null, null, null);
+
+                if (cursor.moveToFirst()) {
+                    String movie_title = cursor.getString(INDEX_MOVIE_TITLE);
+                    String movie_release_date = cursor.getString(INDEX_MOVIE_RELEASE_DATE);
+
+                    String title = context.getString(R.string.app_name);
+
+                    String sort_title = (sort.equals(defaultSort))? "Most Popular" : "Top Rated";
+
+                    // Define the text of the forecast.
+                    String contentText = String.format(context.getString(R.string.format_notification),
+                            sort_title,
+                            movie_title,
+                            movie_release_date
+                    );
+
+                    //build your notification here.
+
+                    NotificationCompat.Builder builder = new NotificationCompat.Builder(context)
+                            .setSmallIcon(R.drawable.ic_cinema_notification)
+                            .setContentTitle(title)
+                            .setContentText(contentText);
+                    Intent intent = new Intent(context, MainActivity.class);
+
+                    TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
+                    stackBuilder.addParentStack(MainActivity.class);
+                    stackBuilder.addNextIntent(intent);
+
+                    PendingIntent pendingIntent = stackBuilder.getPendingIntent(
+                            0,
+                            PendingIntent.FLAG_UPDATE_CURRENT
+                    );
+                    builder.setContentIntent(pendingIntent);
+                    NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                    notificationManager.notify(MOVIE_NOTIFICATION_ID, builder.build());
+
+                }
+
+            }
+        }
     }
 }
