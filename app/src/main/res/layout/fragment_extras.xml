@@ -3,6 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:id="@+id/extras_fragment_linear_layout"
+    android:visibility="gone"
     tools:context="com.example.joanna.cinema.ExtrasFragment">
     <TextView
         android:layout_width="wrap_content"

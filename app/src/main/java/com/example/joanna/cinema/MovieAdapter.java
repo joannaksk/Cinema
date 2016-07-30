@@ -34,8 +34,6 @@ public class MovieAdapter extends CursorRecyclerViewAdapter<MovieAdapter.ViewHol
 
     @Override
     public void onBindViewHolder(ViewHolder holder, final Cursor cursor) {
-//        holder.titleView.setText(cursor.getString(MoviesFragment.COL_MOVIE_TITLE));
-//        holder.titleView.setText(movie_id);
 
         String base_path = BuildConfig.MOVIE_POSTER_BASE_PATH;
         String poster_path = cursor.getString(MoviesFragment.COL_MOVIE_POSTER);

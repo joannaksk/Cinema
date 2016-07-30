@@ -13,9 +13,11 @@ import android.view.MenuItem;
 import com.example.joanna.cinema.sync.CinemaSyncAdapter;
 
 public class MainActivity extends AppCompatActivity implements MoviesFragment.Callback {
+    private static final String DETAILFRAGMENT_TAG = "DFTAG";
     // mSort is the sort currently stored in the Shared Preferences.
     private String mSort;
     private SharedPreferences mPrefs;
+    public boolean mTwoPane;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,6 +31,18 @@ public class MainActivity extends AppCompatActivity implements MoviesFragment.Ca
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        if (findViewById(R.id.movie_detail_container) != null) {
+            mTwoPane = true;
+            if (savedInstanceState == null) {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.movie_detail_container, new DetailActivityFragment(), DETAILFRAGMENT_TAG)
+                        .commit();
+            }
+        } else {
+            mTwoPane = false;
+            getSupportActionBar().setElevation(0f);
+        }
+
         CinemaSyncAdapter.initializeSyncAdapter(this);
     }
 
@@ -41,12 +55,8 @@ public class MainActivity extends AppCompatActivity implements MoviesFragment.Ca
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
             Intent intent = new Intent(this, SettingsActivity.class);
             startActivity(intent);
@@ -58,9 +68,22 @@ public class MainActivity extends AppCompatActivity implements MoviesFragment.Ca
 
     @Override
     public void onItemSelected(Uri movieUri) {
-        Intent intent = new Intent(this, DetailActivity.class)
-                .setData(movieUri);
-        startActivity(intent);
+
+        if (mTwoPane) {
+            Bundle args = new Bundle();
+            args.putParcelable(DetailActivityFragment.DETAIL_URI, movieUri);
+
+            DetailActivityFragment fragment = new DetailActivityFragment();
+            fragment.setArguments(args);
+
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.movie_detail_container, fragment, DETAILFRAGMENT_TAG)
+                    .commit();
+        } else {
+            Intent intent = new Intent(this, DetailActivity.class)
+                    .setData(movieUri);
+            startActivity(intent);
+        }
     }
 
     @Override

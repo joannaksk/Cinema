@@ -19,6 +19,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,6 +36,7 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     static final String DETAIL_URI = "URI";
 
     private static final int MOVIE_DETAIL_LOADER = 0;
+    public static final String DETAILS_SCROLL_POSITION = "DETAILS_SCROLL_POSITION";
     private Uri dUri;
 
     private static final String[] MOVIE_DETAIL_COLUMNS = {
@@ -84,6 +86,8 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
     // An instance of the status broadcast receiver
     DownloadStateReceiver mDownloadStateReceiver;
+    private ScrollView scrollView;
+    public int[] position;
 
     public DetailActivityFragment() {
     }
@@ -117,6 +121,20 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_detail, container, false);
 
+        scrollView = (ScrollView) rootView.findViewById(R.id.details_scroll_view);
+
+        if (savedInstanceState != null) {
+            position = savedInstanceState.getIntArray(DETAILS_SCROLL_POSITION);
+            if (position != null) {
+                scrollView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        scrollView.scrollTo(position[0], position[1]);
+                    }
+                });
+            }
+        }
+
         movieTitleTextView = (TextView) rootView.findViewById(R.id.textview_movie_title);
         posterView = (ImageView) rootView.findViewById(R.id.posterView);
         yearTextView = (TextView) rootView.findViewById(R.id.textView_year);
@@ -136,15 +154,15 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         Bundle arguments = getArguments();
         if (arguments != null) {
             dUri = arguments.getParcelable(DetailActivityFragment.DETAIL_URI);
-        }
 
-        // Add the extras fragment.
-        String movie_id = dUri.getLastPathSegment();
-        ExtrasFragment extras = new ExtrasFragment();
-        Bundle bundle = new Bundle();
-        bundle.putString("movie_id", movie_id);
-        extras.setArguments(bundle);
-        this.getChildFragmentManager().beginTransaction().add(R.id.extras_fragment, extras).commit();
+            // Add the extras fragment.
+            String movie_id = dUri.getLastPathSegment();
+            ExtrasFragment extras = new ExtrasFragment();
+            Bundle bundle = new Bundle();
+            bundle.putString("movie_id", movie_id);
+            extras.setArguments(bundle);
+            this.getChildFragmentManager().beginTransaction().add(R.id.extras_fragment, extras).commit();
+        }
 
         return rootView;
     }
@@ -153,6 +171,13 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         getLoaderManager().initLoader(MOVIE_DETAIL_LOADER, null, this);
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putIntArray(DETAILS_SCROLL_POSITION,
+                new int[]{scrollView.getScrollX(), scrollView.getScrollY()});
     }
 
     private boolean usedFavoriteUri(){

@@ -12,6 +12,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 
 import java.util.List;
 
@@ -36,6 +37,8 @@ import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.videos;
  * to handle interaction events.
  */
 public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCallbacks<List[]> {
+
+    private LinearLayout extras_layout;
 
     private VideoAdapter videoAdapter;
     private RecyclerView videoView;
@@ -64,7 +67,7 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
         // Inflate the layout for this fragment
         View rootView = inflater.inflate(R.layout.fragment_extras, container, false);
 
-
+        extras_layout = (LinearLayout) rootView;
         LinearLayoutManager layout = new LinearLayoutManager(getActivity());
         layout.setOrientation(LinearLayoutManager.VERTICAL);
         videoView  = (RecyclerView)rootView.findViewById(R.id.list_videos);
@@ -121,6 +124,7 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
     public void onLoadFinished(android.support.v4.content.Loader<List[]> loader, List[] data) {
         updateVideoData(data[0]);
         updateReviewsData(data[1]);
+        extras_layout.setVisibility(View.VISIBLE);
     }
 
     @Override
