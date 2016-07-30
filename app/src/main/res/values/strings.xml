@@ -13,7 +13,7 @@
     <string name="pref_sort_order_favorites">favorites</string>
     <string-array name="pref_sort_order_names">
         <item>Most Popular</item>
-        <item>Highest Rated</item>
+        <item>Top Rated</item>
         <item>Favorites</item>
     </string-array>
     <string-array name="pref_sort_order_values">

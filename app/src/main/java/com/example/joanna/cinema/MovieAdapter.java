@@ -47,7 +47,7 @@ public class MovieAdapter extends CursorRecyclerViewAdapter<MovieAdapter.ViewHol
                 .into(holder.posterView);
         } else {
             //Todo Add placeholder image
-            holder.posterView.setImageResource(R.drawable.ic_game_of_thrones);
+            holder.posterView.setImageResource(R.drawable.placeholder);
         }
 
 

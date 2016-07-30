@@ -156,12 +156,14 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
             dUri = arguments.getParcelable(DetailActivityFragment.DETAIL_URI);
 
             // Add the extras fragment.
-            String movie_id = dUri.getLastPathSegment();
-            ExtrasFragment extras = new ExtrasFragment();
-            Bundle bundle = new Bundle();
-            bundle.putString("movie_id", movie_id);
-            extras.setArguments(bundle);
-            this.getChildFragmentManager().beginTransaction().add(R.id.extras_fragment, extras).commit();
+            if (savedInstanceState == null) {
+                String movie_id = dUri.getLastPathSegment();
+                ExtrasFragment extras = new ExtrasFragment();
+                Bundle bundle = new Bundle();
+                bundle.putString("movie_id", movie_id);
+                extras.setArguments(bundle);
+                this.getChildFragmentManager().beginTransaction().add(R.id.extras_fragment, extras).commit();
+            }
         }
 
         return rootView;
@@ -241,7 +243,7 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
                     .into(posterView);
         } else {
             //Todo Add placeholder image
-            posterView.setImageResource(R.drawable.ic_game_of_thrones);
+            posterView.setImageResource(R.drawable.placeholder);
         }
 
         // Year

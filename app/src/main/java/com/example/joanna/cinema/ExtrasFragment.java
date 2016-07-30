@@ -59,6 +59,8 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
     private final int EXTRAS_LOADER = 1 ;
     private MenuItem item;
     private ShareActionProvider mShareActionProvider;
+    private Intent shareIntent;
+    private boolean mEnabledNew = false;
 
     public ExtrasFragment() {
         setHasOptionsMenu(true);
@@ -69,8 +71,15 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
         inflater.inflate(R.menu.menu_extrasfragment, menu);
         // Locate MenuItem with ShareActionProvider
         item = menu.findItem(R.id.action_share);
-        item.setVisible(false);
-        super.onCreateOptionsMenu(menu, inflater);
+        item.setEnabled(mEnabledNew);
+
+        // Fetch and store ShareActionProvider
+        mShareActionProvider = (ShareActionProvider) MenuItemCompat.getActionProvider(item);
+        if(mShareActionProvider != null && first_movie_key != null) {
+            mShareActionProvider.setShareIntent(createShareIntent());
+        }
+
+        super.onCreateOptionsMenu(menu,inflater);
     }
 
     @Override
@@ -141,15 +150,23 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
 
     @Override
     public void onLoadFinished(android.support.v4.content.Loader<List[]> loader, List[] data) {
-        updateVideoData(data[0]);
-        updateReviewsData(data[1]);
-        extras_layout.setVisibility(View.VISIBLE);
+        boolean videoDataPresent = false;
+        boolean reviewDataPresent = false;
+        if (data[0] != null) {
+            videoDataPresent = true;
+            updateVideoData(data[0]);
+            if(item != null) {
+                mShareActionProvider.setShareIntent(createShareIntent());
+                item.setEnabled(mEnabledNew);
+            }
+        }
+        if (data[1] != null) {
+            reviewDataPresent = true;
+            updateReviewsData(data[1]);
+        }
 
-        // Fetch and store ShareActionProvider
-        mShareActionProvider = (ShareActionProvider) MenuItemCompat.getActionProvider(item);
-        if(mShareActionProvider != null) {
-            mShareActionProvider.setShareIntent(createShareIntent());
-            item.setVisible(true);
+        if(videoDataPresent || reviewDataPresent) {
+            extras_layout.setVisibility(View.VISIBLE);
         }
     }
 
@@ -158,12 +175,12 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
     }
 
     private Intent createShareIntent() {
-        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent = new Intent(Intent.ACTION_SEND);
         shareIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
         shareIntent.setType("text/plain");
-
         Uri movie_uri = Uri.parse(BuildConfig.MOVIE_VIDEOS_BASE_PATH+first_movie_key);
         shareIntent.putExtra(Intent.EXTRA_TEXT, movie_uri.toString());
+
         return shareIntent;
     }
 
