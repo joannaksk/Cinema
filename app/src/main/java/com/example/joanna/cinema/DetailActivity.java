@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.Menu;
 
 public class DetailActivity extends AppCompatActivity implements ExtrasFragment.OnFragmentInteractionListener{
 
@@ -18,15 +19,6 @@ public class DetailActivity extends AppCompatActivity implements ExtrasFragment.
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-
-//        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-//        fab.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
-//            }
-//        });
 
 
         if (savedInstanceState == null) {
@@ -56,5 +48,11 @@ public class DetailActivity extends AppCompatActivity implements ExtrasFragment.
         } else {
             Log.d(LOG_TAG, "Couldn't call " + movie_uri.toString() + ", no receiving apps installed!");
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_detail, menu);
+        return true;
     }
 }

@@ -2,14 +2,21 @@ package com.example.joanna.cinema;
 
 
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.ShareActionProvider;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -38,6 +45,7 @@ import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.videos;
  */
 public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCallbacks<List[]> {
 
+    public static String first_movie_key;
     private LinearLayout extras_layout;
 
     private VideoAdapter videoAdapter;
@@ -49,9 +57,20 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
     private static String movie_id;
 
     private final int EXTRAS_LOADER = 1 ;
+    private MenuItem item;
+    private ShareActionProvider mShareActionProvider;
 
     public ExtrasFragment() {
-        // Required empty public constructor
+        setHasOptionsMenu(true);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        inflater.inflate(R.menu.menu_extrasfragment, menu);
+        // Locate MenuItem with ShareActionProvider
+        item = menu.findItem(R.id.action_share);
+        item.setVisible(false);
+        super.onCreateOptionsMenu(menu, inflater);
     }
 
     @Override
@@ -125,10 +144,27 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
         updateVideoData(data[0]);
         updateReviewsData(data[1]);
         extras_layout.setVisibility(View.VISIBLE);
+
+        // Fetch and store ShareActionProvider
+        mShareActionProvider = (ShareActionProvider) MenuItemCompat.getActionProvider(item);
+        if(mShareActionProvider != null) {
+            mShareActionProvider.setShareIntent(createShareIntent());
+            item.setVisible(true);
+        }
     }
 
     @Override
     public void onLoaderReset(android.support.v4.content.Loader<List[]> loader) {
+    }
+
+    private Intent createShareIntent() {
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
+        shareIntent.setType("text/plain");
+
+        Uri movie_uri = Uri.parse(BuildConfig.MOVIE_VIDEOS_BASE_PATH+first_movie_key);
+        shareIntent.putExtra(Intent.EXTRA_TEXT, movie_uri.toString());
+        return shareIntent;
     }
 
     public interface OnFragmentInteractionListener {
@@ -158,6 +194,7 @@ public class ExtrasFragment extends Fragment implements LoaderManager.LoaderCall
 
                     List<Video> videos = movie.getVideos();
                     movie_data[0] = videos;
+                    first_movie_key = videos.get(0).getKey();
                     List<Reviews> reviews = movie.getReviews();
                     movie_data[1] = reviews;
 
