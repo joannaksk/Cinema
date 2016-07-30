@@ -8,6 +8,7 @@ import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SyncRequest;
 import android.content.SyncResult;
@@ -42,12 +43,25 @@ import static info.movito.themoviedbapi.TmdbMovies.MovieMethod.videos;
  */
 public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
 
-    public static final int SYNC_INTERVAL = 1000 * 60 * 60 * 24;
-    public static final int SYNC_FLEXTIME = SYNC_INTERVAL/3;
+    private static final String[] NOTIFY_MOVIE_PROJECTION = {
+            MovieContract.MovieColumns._ID,
+            MovieContract.MovieColumns.COLUMN_MOVIE_ID,
+            MovieContract.MovieColumns.COLUMN_TITLE,
+            MovieContract.MovieColumns.COLUMN_RELEASE_DATE,
+    };
+    private static final int INDEX_MOVIE_TITLE = 2;
+    private static final int INDEX_MOVIE_RELEASE_DATE = 3;
+    private static final int MOVIE_NOTIFICATION_ID = 1;
+    public static  int SYNC_INTERVAL;
+    public static  int SYNC_FLEXTIME;
+    private long start_of_sync;
+    private long end_of_sync;
+    private long time_from_last_sync;
+    private boolean first_sync;
 
     final String LOG_TAG = CinemaSyncAdapter.class.getSimpleName();
     private final Context mContext;
-    private SharedPreferences sharedPreferences;
+    private static SharedPreferences sharedPreferences;
 
     public CinemaSyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
@@ -57,78 +71,93 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
     @Override
     public void onPerformSync(Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult) {
 
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(mContext);
-        try {
-            // Try to fetch the movies.
-            TmdbApi tmdbApi = new TmdbApi(BuildConfig.MOVIE_DB_API_KEY);
-            TmdbMovies movies = tmdbApi.getMovies();
-            List<MovieDb> movies_list;
+        start_of_sync = System.currentTimeMillis();
+        Log.d(LOG_TAG, "Start of Sync : " + start_of_sync);
 
-            // Decide whether to fetch the most popular or the top rated movies.
-            String defaultSort = mContext.getString(R.string.pref_sort_order_default);
-            String sort = sharedPreferences.getString(mContext.getString(R.string.pref_sort_order_key),
-                    defaultSort);
+        first_sync = (end_of_sync == 0)? true : false;
 
-            // Changed this because I was comparing references instead of the actual text.
-            if (sort.equals(defaultSort)) {
-                movies_list  = movies.getPopularMovies("en", 0).getResults();
-                Log.d(LOG_TAG, "FetchMovieTask Complete. Popular Inserted");
-            } else {
-                movies_list = movies.getTopRatedMovies("en", 0).getResults();
-                Log.d(LOG_TAG, "FetchMovieTask Complete. Top Rated Inserted");
-            }
-
-            // Insert the new movie information into the database
-            Vector<ContentValues> cVVector = new Vector<ContentValues>(movies_list.size());
-
-            for (MovieDb movie : movies_list) {
-                MovieDb movie_details = movies.getMovie(movie.getId(), "en", credits, videos, releases, images, similar, reviews);
-                ContentValues movieValues = new ContentValues();
-
-                movieValues.put(MovieContract.MovieColumns.COLUMN_MOVIE_ID, movie.getId());
-                movieValues.put(MovieContract.MovieColumns.COLUMN_TITLE, movie.getTitle());
-                movieValues.put(MovieContract.MovieColumns.COLUMN_RELEASE_DATE, movie.getReleaseDate());
-                movieValues.put(MovieContract.MovieColumns.COLUMN_DURATION, movie_details.getRuntime());
-                movieValues.put(MovieContract.MovieColumns.COLUMN_POSTER, movie.getPosterPath());
-                movieValues.put(MovieContract.MovieColumns.COLUMN_POPULARITY, movie.getPopularity());
-                movieValues.put(MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE, movie.getVoteAverage());
-                movieValues.put(MovieContract.MovieColumns.COLUMN_OVERVIEW, movie.getOverview());
-
-                // If this movie_id exists in favorites, tag this as a favorites.
-                Uri query_uri = ContentUris.withAppendedId(MovieProvider.Favorites.LIST_CONTENT_URI, movie.getId());
-                String[] title = {MovieContract.MovieColumns._ID, MovieContract.MovieColumns.COLUMN_TITLE};
-                Cursor favorite = mContext.getContentResolver().query(query_uri, title, null, null, null);
-                if (favorite.getCount() != 0) {
-                    favorite.moveToFirst();
-                    if (favorite.getString(1) != null) {
-                        String name = favorite.getString(1);
-                        movieValues.put(MovieContract.MovieColumns.COLUMN_FAVORITE, 1);
-                        Log.d(LOG_TAG, name + "is a favorite");
-                    }
-                }
-                favorite.close();
-
-                cVVector.add(movieValues);
-                Log.d(LOG_TAG, "FetchMovieTask Adding ID: " + movie.getId() + " : " + movie.getTitle() + " To Be Inserted");
-            }
-
-            // Add new data to database
-            if ( cVVector.size() > 0 ) {
-                // Clear the database because I only want to have 20 items in there at any time.
-                int rowsDeleted = mContext.getContentResolver().delete(MovieProvider.Movies.LIST_CONTENT_URI, null, null);
-                Log.d(LOG_TAG, "FetchMovieTask Deleting Old Data: " + rowsDeleted + " Deleted");
-                // Proceed to insert new data.
-                int rowsInserted = mContext.getContentResolver().bulkInsert(
-                        MovieProvider.Movies.LIST_CONTENT_URI,
-                        cVVector.toArray(new ContentValues[cVVector.size()])
-                );
-                Log.d(LOG_TAG, "FetchMovieTask Complete. " + rowsInserted + " Inserted");
-            }
-            return;
+        if (end_of_sync != 0) {
+           time_from_last_sync  = start_of_sync - end_of_sync;
         }
-        catch (Exception e) {
-            Log.e(LOG_TAG, e.getMessage(), e);
-            e.printStackTrace();
+
+        if (first_sync || (time_from_last_sync >= 30000)) {
+            try {
+                // Try to fetch the movies.
+                TmdbApi tmdbApi = new TmdbApi(BuildConfig.MOVIE_DB_API_KEY);
+                TmdbMovies movies = tmdbApi.getMovies();
+                List<MovieDb> movies_list;
+
+                // Decide whether to fetch the most popular or the top rated movies.
+                String defaultSort = mContext.getString(R.string.pref_sort_order_default);
+                String sort = sharedPreferences.getString(mContext.getString(R.string.pref_sort_order_key),
+                        defaultSort);
+
+                // Changed this because I was comparing references instead of the actual text.
+                if (sort.equals(defaultSort)) {
+                    movies_list = movies.getPopularMovies("en", 0).getResults();
+                    Log.d(LOG_TAG, "Popular Inserted");
+                } else {
+                    movies_list = movies.getTopRatedMovies("en", 0).getResults();
+                    Log.d(LOG_TAG, "Top Rated Inserted");
+                }
+
+                // Insert the new movie information into the database
+                Vector<ContentValues> cVVector = new Vector<ContentValues>(movies_list.size());
+
+                for (MovieDb movie : movies_list) {
+                    MovieDb movie_details = movies.getMovie(movie.getId(), "en", credits, videos, releases, images, similar, reviews);
+                    ContentValues movieValues = new ContentValues();
+
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_MOVIE_ID, movie.getId());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_TITLE, movie.getTitle());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_RELEASE_DATE, movie.getReleaseDate());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_DURATION, movie_details.getRuntime());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_POSTER, movie.getPosterPath());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_POPULARITY, movie.getPopularity());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_VOTE_AVERAGE, movie.getVoteAverage());
+                    movieValues.put(MovieContract.MovieColumns.COLUMN_OVERVIEW, movie.getOverview());
+
+                    // If this movie_id exists in favorites, tag this as a favorites.
+                    Uri query_uri = ContentUris.withAppendedId(MovieProvider.Favorites.LIST_CONTENT_URI, movie.getId());
+                    String[] title = {MovieContract.MovieColumns._ID, MovieContract.MovieColumns.COLUMN_TITLE};
+                    Cursor favorite = mContext.getContentResolver().query(query_uri, title, null, null, null);
+                    if (favorite.getCount() != 0) {
+                        favorite.moveToFirst();
+                        if (favorite.getString(1) != null) {
+                            String name = favorite.getString(1);
+                            movieValues.put(MovieContract.MovieColumns.COLUMN_FAVORITE, 1);
+                            Log.d(LOG_TAG, name + "is a favorite");
+                        }
+                    }
+                    favorite.close();
+
+                    cVVector.add(movieValues);
+                    Log.d(LOG_TAG, "FetchMovieTask Adding ID: " + movie.getId() + " : " + movie.getTitle() + " To Be Inserted");
+                }
+
+                // Add new data to database
+                if (cVVector.size() > 0) {
+                    // Clear the database because I only want to have 20 items in there at any time.
+                    int rowsDeleted = mContext.getContentResolver().delete(MovieProvider.Movies.LIST_CONTENT_URI, null, null);
+                    Log.d(LOG_TAG, "FetchMovieTask Deleting Old Data: " + rowsDeleted + " Deleted");
+                    // Proceed to insert new data.
+                    int rowsInserted = mContext.getContentResolver().bulkInsert(
+                            MovieProvider.Movies.LIST_CONTENT_URI,
+                            cVVector.toArray(new ContentValues[cVVector.size()])
+                    );
+                    Log.d(LOG_TAG, "FetchMovieTask Complete. " + rowsInserted + " Inserted");
+                }
+
+                Intent i = new Intent(CinemaSyncService.ACTION_SYNC_FINISHED);
+                mContext.sendBroadcast(i);
+
+                end_of_sync = System.currentTimeMillis();
+                Log.d(LOG_TAG, "End of Sync : " + end_of_sync);
+                return;
+            } catch (Exception e) {
+                Log.e(LOG_TAG, e.getMessage(), e);
+                e.printStackTrace();
+            }
         }
     }
 
@@ -204,6 +233,11 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private static void onAccountCreated(Account newAccount, Context context) {
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SYNC_INTERVAL = Integer.valueOf(
+                sharedPreferences.getString(context.getString(R.string.pref_sync_frequency_key),
+                        context.getString(R.string.pref_sync_frequency_default)));
+        SYNC_FLEXTIME = SYNC_INTERVAL/3;
         /*
          * Since we've created an account
          */

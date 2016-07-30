@@ -1,5 +1,9 @@
 package com.example.joanna.cinema;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
@@ -22,6 +26,7 @@ import android.view.ViewGroup;
 import com.example.joanna.cinema.data.MovieContract;
 import com.example.joanna.cinema.data.MovieProvider;
 import com.example.joanna.cinema.sync.CinemaSyncAdapter;
+import com.example.joanna.cinema.sync.CinemaSyncService;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -45,6 +50,13 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     private SwipeRefreshLayout swipeView;
     private SharedPreferences sharedPreferences;
 
+    private BroadcastReceiver syncFinishedReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            finishUpdate();
+        }
+    };
+
 
     public MoviesFragment() {
     }
@@ -53,6 +65,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        getActivity().registerReceiver(syncFinishedReceiver, new IntentFilter(CinemaSyncService.SYNC_FINISHED));
     }
 
     @Override
@@ -88,7 +101,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
             public void onItemClick(Long movie_id) {
                 if (movie_id != null) {
                     ((Callback) getActivity())
-                            .onItemSelected(MovieProvider.Movies.withId(movie_id));
+                            .onItemSelected(getDetailsUri(movie_id));
                 }
             }
         });
@@ -103,8 +116,25 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     private void updateMovies() {
         //Now Syncing
         CinemaSyncAdapter.syncImmediately(getActivity());
+    }
+
+    public void finishUpdate(){
         movieAdapter.notifyDataSetChanged();
         swipeView.setRefreshing(false);
+    }
+
+    private Uri getDetailsUri(Long movie_id) {
+        String defaultSort = getActivity().getString(R.string.pref_sort_order_default);
+        String favoritesSort = getActivity().getString(R.string.pref_sort_order_favorites);
+        String sort = sharedPreferences.getString(getActivity().getString(R.string.pref_sort_order_key),
+                defaultSort);
+        Uri detailsUri;
+        if (sort.equals(favoritesSort)) {
+            detailsUri = MovieProvider.Favorites.withId(movie_id);
+        } else {
+            detailsUri = MovieProvider.Movies.withId(movie_id);
+        }
+        return detailsUri;
     }
 
     /**
@@ -127,6 +157,12 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         getLoaderManager().initLoader(MOVIE_LOADER, null, this);
         super.onActivityCreated(savedInstanceState);
+    }
+
+    @Override
+    public void onDestroy() {
+        getActivity().unregisterReceiver(syncFinishedReceiver);
+        super.onDestroy();
     }
 
     @Override

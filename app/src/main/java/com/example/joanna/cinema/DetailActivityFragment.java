@@ -49,6 +49,19 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
             MovieContract.MovieColumns.COLUMN_OVERVIEW,
             MovieContract.MovieColumns.COLUMN_FAVORITE
     };
+
+    private static final String[] FAVORITE_DETAIL_COLUMNS = {
+            MovieContract.FavoriteColumns._ID,
+            MovieContract.FavoriteColumns.COLUMN_MOVIE_ID,
+            MovieContract.FavoriteColumns.COLUMN_TITLE,
+            MovieContract.FavoriteColumns.COLUMN_RELEASE_DATE,
+            MovieContract.FavoriteColumns.COLUMN_DURATION,
+            MovieContract.FavoriteColumns.COLUMN_POSTER,
+            MovieContract.FavoriteColumns.COLUMN_POPULARITY,
+            MovieContract.FavoriteColumns.COLUMN_VOTE_AVERAGE,
+            MovieContract.FavoriteColumns.COLUMN_OVERVIEW,
+    };
+
     static final int COL_MOVIE_DBID = 0;
     static final int COL_MOVIE_ID = 1;
     static final int COL_MOVIE_TITLE = 2;
@@ -142,6 +155,13 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         getLoaderManager().initLoader(MOVIE_DETAIL_LOADER, null, this);
     }
 
+    private boolean usedFavoriteUri(){
+        if(dUri.toString().contains("favorite")) {
+            return true;
+        }
+        return false;
+    }
+
     private void addFavorite() {
         Intent intent = new Intent(getActivity(), AddFavoritesService.class);
         Bundle details = parcelData(detailsCursor);
@@ -152,11 +172,20 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
         Log.v(LOG_TAG, "In onCreateLoader");
+
+        String[] COLUMNS;
+        if(usedFavoriteUri()){
+            COLUMNS = FAVORITE_DETAIL_COLUMNS;
+        } else {
+            COLUMNS = MOVIE_DETAIL_COLUMNS;
+        }
+
+
         if ( null != dUri ) {
             return new CursorLoader(
                     getActivity(),
                     dUri,
-                    MOVIE_DETAIL_COLUMNS,
+                    COLUMNS,
                     null,
                     null,
                     null);
@@ -208,7 +237,7 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
         overviewTextView.setText(overview);
 
         // Hide favoritesbutton if this is already a fave.
-        if (data.getInt(COL_MOVIE_FAVORITE) != 0) {
+        if (usedFavoriteUri() || (!usedFavoriteUri() && data.getInt(COL_MOVIE_FAVORITE) != 0)) {
             favoritesbutton.setVisibility(View.GONE);
         }
 
