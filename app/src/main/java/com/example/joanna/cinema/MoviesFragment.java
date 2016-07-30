@@ -46,6 +46,7 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
     static final int COL_MOVIE_DBID = 0;
     static final int COL_MOVIE_ID = 1;
     static final int COL_MOVIE_POSTER = 2;
+    public static final String DATA_SET_CHANGED = "dataSetChanged";
 
     private GridLayoutManager layoutManager;
     private MovieAdapter movieAdapter;
@@ -55,9 +56,12 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
     //Broadcast receiver that listens to Sync Adapter broadcasts.
     private BroadcastReceiver syncFinishedReceiver = new BroadcastReceiver() {
+        public boolean dataSetChanged;
+
         @Override
         public void onReceive(Context context, Intent intent) {
-            finishUpdate();
+            dataSetChanged = intent.getBooleanExtra(DATA_SET_CHANGED, false);
+            finishUpdate(dataSetChanged);
         }
     };
     private MainActivity mainActivity;
@@ -141,9 +145,12 @@ public class MoviesFragment extends Fragment implements LoaderManager.LoaderCall
 
     /**
      * Function that is called after the sync adapter is done.
+     * @param dataSetChanged
      */
-    public void finishUpdate(){
-        movieAdapter.notifyDataSetChanged();
+    public void finishUpdate(boolean dataSetChanged){
+        if (dataSetChanged) {
+            movieAdapter.notifyDataSetChanged();
+        }
         swipeView.setRefreshing(false);
     }
 

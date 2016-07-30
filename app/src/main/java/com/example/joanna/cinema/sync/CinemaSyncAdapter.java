@@ -57,6 +57,7 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
     private static final int INDEX_MOVIE_TITLE = 2;
     private static final int INDEX_MOVIE_RELEASE_DATE = 3;
     private static final int MOVIE_NOTIFICATION_ID = 1806;
+    public static final String DATA_SET_CHANGED = "dataSetChanged";
     public static  int SYNC_INTERVAL;
     public static  int SYNC_FLEXTIME;
     private long start_of_sync;
@@ -67,6 +68,7 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
     final String LOG_TAG = CinemaSyncAdapter.class.getSimpleName();
     private final Context mContext;
     private static SharedPreferences sharedPreferences;
+    private boolean dataSetChanged;
 
     public CinemaSyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
@@ -81,11 +83,13 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
 
         first_sync = (end_of_sync == 0)? true : false;
 
+        dataSetChanged = false;
+
         if (end_of_sync != 0) {
            time_from_last_sync  = start_of_sync - end_of_sync;
         }
 
-        if (first_sync || (time_from_last_sync >= 30000)) {
+        if (first_sync || (time_from_last_sync >= 10000)) {
             try {
                 // Try to fetch the movies.
                 TmdbApi tmdbApi = new TmdbApi(BuildConfig.MOVIE_DB_API_KEY);
@@ -154,18 +158,19 @@ public class CinemaSyncAdapter extends AbstractThreadedSyncAdapter {
                     Log.d(LOG_TAG, "FetchMovieTask Complete. " + rowsInserted + " Inserted");
                 }
 
-                Intent i = new Intent(CinemaSyncService.ACTION_SYNC_FINISHED);
-                mContext.sendBroadcast(i);
+                dataSetChanged = true;
                 notifyMovie();
 
                 end_of_sync = System.currentTimeMillis();
                 Log.d(LOG_TAG, "End of Sync : " + end_of_sync);
-                return;
             } catch (Exception e) {
                 Log.e(LOG_TAG, e.getMessage(), e);
                 e.printStackTrace();
             }
         }
+        Intent i = new Intent(CinemaSyncService.ACTION_SYNC_FINISHED);
+        i.putExtra(DATA_SET_CHANGED, dataSetChanged);
+        mContext.sendBroadcast(i);
     }
 
     /**
